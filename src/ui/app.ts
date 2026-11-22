@@ -1,4 +1,5 @@
 import type { ColourChoice } from '../core/colour';
+import { HUNGRY_PIECES, type HungryPiece } from '../core/hungry-pieces';
 import type { Profile, ProfileStore } from '../core/profiles';
 import { createStars } from '../core/stars';
 import { createSavedGameStore, type SavedGame, type SavedGameStore } from '../core/saved-game';
@@ -6,12 +7,14 @@ import { OPPONENTS, opponentById, type OpponentCharacter } from '../opponents/ro
 import { startGame, type Game, type GameAudio } from './game-screen';
 import { showGrownUpArea } from './grown-up-area';
 import { createHold } from './hold';
+import { startHungryPieces } from './hungry-screen';
 import { createMenuChoice, type Choice } from './menu';
 import {
   AVATARS,
   avatarById,
   BLACK_PAWN_SVG,
   DICE_SVG,
+  HUNGRY_PIECES_SVG,
   MINI_GAMES_SVG,
   NEW_GAME_SVG,
   NEW_PROFILE_SVG,
@@ -148,20 +151,52 @@ export function startApp(
 
   function home(profile: Profile): void {
     current = profile;
-    const comingSoon = (name: string) => () => {
-      const text = `${name}: coming soon!`;
-      audio.speaker.say(text);
-      el.menuMessage.replaceChildren(spokenMessage(text, audio.speaker));
-    };
     showMenu(
       [
         { id: 'puzzles', name: 'Puzzles', picture: PUZZLES_SVG, onGo: () => puzzles(profile) },
         { id: 'play', name: 'Play', picture: PLAY_SVG, onGo: () => carryOnOrNew(profile) },
-        { id: 'mini-games', name: 'Mini-games', picture: MINI_GAMES_SVG, onGo: comingSoon('Mini-games') },
+        { id: 'mini-games', name: 'Mini-games', picture: MINI_GAMES_SVG, onGo: () => miniGames(profile) },
       ],
       { label: '↩', name: 'Change player', action: avatarPicker },
       profile,
     );
+  }
+
+  /** The Mini-games: just Hungry Pieces in v1. */
+  function miniGames(profile: Profile): void {
+    showMenu(
+      [{ id: 'hungry-pieces', name: 'Hungry Pieces', picture: HUNGRY_PIECES_SVG, onGo: () => hungryPicker(profile) }],
+      { label: '↩', name: 'Back', action: () => home(profile) },
+      profile,
+    );
+  }
+
+  /** Which piece is hungry: the five pieces, as the standard pictures. */
+  function hungryPicker(profile: Profile): void {
+    const items = HUNGRY_PIECES.map((piece) => ({
+      id: piece,
+      name: `${piece[0].toUpperCase()}${piece.slice(1)}`,
+      // chessground's own piece picture (its classes match our piece names), so it looks like the board.
+      picture: `<span class="cg-wrap menu-piece"><piece class="${piece} white"></piece></span>`,
+      onGo: () => hungryPieces(profile, piece),
+    }));
+    showMenu(items, { label: '↩', name: 'Back', action: () => miniGames(profile) }, profile);
+  }
+
+  function hungryPieces(profile: Profile, piece: HungryPiece): void {
+    el.menu.hidden = true;
+    el.go.hidden = true;
+    el.grownUpButton.hidden = true;
+    el.game.hidden = false;
+    game = startHungryPieces({ board: el.board, message: el.message, starJar: el.starJar }, audio, store, profile.id, piece);
+    const leave = () => {
+      game?.stop();
+      game = undefined;
+      home(profile);
+    };
+    // Points are awarded as each level finishes, so nothing is lost by leaving.
+    showCorner({ label: '🏠', name: 'Home', action: leave });
+    showProfileBadge(profile);
   }
 
   /**

@@ -234,6 +234,9 @@ html, body {
 .menu-choice:active { transform: scale(0.95); }
 .picture { display: block; width: 100%; height: 100%; }
 .picture svg { width: 100%; height: 100%; display: block; }
+/* A standard piece picture on a menu choice (the Hungry Pieces picker); the doubled class beats chessground's .cg-wrap. */
+.menu-piece.cg-wrap { display: block; width: 100%; height: 100%; }
+.menu-piece.cg-wrap piece { position: static; display: block; width: 100%; height: 100%; will-change: auto; }
 #menu-message .spoken {
   font-size: 1.8rem;
   font-weight: 700;
