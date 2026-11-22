@@ -14,3 +14,17 @@ A chess learning web app for two young children (a 4-year-old pre-reader and a 7
 
 ## Stack
 Vite + TypeScript (no framework), Vitest, chessground (board), chess.js (rules), Stockfish WASM in a Web Worker, browser `speechSynthesis` (en-GB), Web Audio sound effects, localStorage progress with versioned keys. Deployed to GitHub Pages via GitHub Actions. Patterns to reuse come from the author's `word-bots` repo (speech, sound, progress, PWA service worker).
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues for robhumphries5/kids-chess (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
