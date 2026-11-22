@@ -52,6 +52,8 @@ startApp(
     go: byId<HTMLButtonElement>('go'),
     corner: byId<HTMLButtonElement>('corner'),
     profileBadge: byId('profile-badge'),
+    grownUpArea: byId('grown-up'),
+    grownUpButton: byId<HTMLButtonElement>('grown-up-button'),
   },
   createProfileStore(),
   { speaker: createSpeaker(), sound },

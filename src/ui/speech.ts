@@ -40,3 +40,12 @@ export function createSpeaker(
     },
   };
 }
+
+/** A Speaker that is silent while `isOn` says no: the per-Profile voice switch. */
+export function voiceSwitched(speaker: Speaker, isOn: () => boolean): Speaker {
+  return {
+    say(text) {
+      if (isOn()) speaker.say(text);
+    },
+  };
+}

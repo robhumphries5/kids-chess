@@ -7,6 +7,7 @@ function memoryStorage(map = new Map<string, string>()): KeyValueStorage & { map
     map,
     getItem: (k) => map.get(k) ?? null,
     setItem: (k, v) => void map.set(k, v),
+    removeItem: (k) => void map.delete(k),
   };
 }
 
@@ -30,11 +31,16 @@ describe('Profile store', () => {
       setItem: () => {
         throw new Error('blocked');
       },
+      removeItem: () => {
+        throw new Error('blocked');
+      },
     };
     const store = createProfileStore(throwing);
     expect(store.list()).toEqual([]);
     const fox = store.add('fox');
     expect(() => store.save(fox.id, { ...DEFAULT_PROFILE_DATA, points: 10 })).not.toThrow();
+    expect(() => store.remove(fox.id)).not.toThrow();
+    expect(store.list()).toEqual([]);
   });
 
   it('a new Profile starts with default data', () => {
@@ -124,5 +130,111 @@ describe('Profile store', () => {
     const fox = store.add('fox');
     store.load(fox.id).opponentsBeaten.push('snail');
     expect(store.load(fox.id).opponentsBeaten).toEqual([]);
+  });
+});
+
+describe('Help preset', () => {
+  it('"Lots of help" turns every Move Colours, Blunder Warning and Missed-Chance Alert switch on', () => {
+    const store = createProfileStore(memoryStorage());
+    const fox = store.add('fox', { preset: 'lots' });
+    const data = store.load(fox.id);
+    expect(data.helpPreset).toBe('lots');
+    expect(data.settings).toEqual({
+      voice: true,
+      moveColours: true,
+      spokenReasons: true,
+      blunderWarning: { checkmate: true, queen: true, rook: true, bishopKnight: true },
+      missedChance: { checkmate: true, queen: true, rook: true, bishopKnight: true },
+    });
+  });
+
+  it('"Some help" turns on only the checkmate and queen kinds, with spoken reasons', () => {
+    const store = createProfileStore(memoryStorage());
+    const owl = store.add('owl', { preset: 'some' });
+    const data = store.load(owl.id);
+    expect(data.helpPreset).toBe('some');
+    expect(data.settings).toEqual({
+      voice: true,
+      moveColours: true,
+      spokenReasons: true,
+      blunderWarning: { checkmate: true, queen: true, rook: false, bishopKnight: false },
+      missedChance: { checkmate: true, queen: true, rook: false, bishopKnight: false },
+    });
+  });
+
+  it('the preset survives a reload', () => {
+    const map = new Map<string, string>();
+    const owl = createProfileStore(memoryStorage(map)).add('owl', { preset: 'some' });
+    expect(createProfileStore(memoryStorage(map)).load(owl.id).helpPreset).toBe('some');
+  });
+
+  it('older saved data with no preset loads as "Lots of help", keeping the switches it had', () => {
+    const storage = memoryStorage(
+      new Map([['kids-chess:profile:a:v1', JSON.stringify({ points: 20, settings: { moveColours: false } })]]),
+    );
+    const data = createProfileStore(storage).load('a');
+    expect(data.helpPreset).toBe('lots');
+    expect(data.points).toBe(20);
+    expect(data.settings.moveColours).toBe(false);
+    expect(data.settings.blunderWarning.rook).toBe(true);
+    expect(data.settings.voice).toBe(true);
+  });
+
+  it('missing switches in "Some help" data take that preset\'s defaults', () => {
+    const storage = memoryStorage(
+      new Map([['kids-chess:profile:a:v1', JSON.stringify({ helpPreset: 'some', settings: { voice: false } })]]),
+    );
+    const { settings } = createProfileStore(storage).load('a');
+    expect(settings.voice).toBe(false);
+    expect(settings.blunderWarning).toEqual({ checkmate: true, queen: true, rook: false, bishopKnight: false });
+  });
+});
+
+describe('Managing Profiles', () => {
+  it('a Profile can be given a name, and renamed, and it persists', () => {
+    const map = new Map<string, string>();
+    const store = createProfileStore(memoryStorage(map));
+    const fox = store.add('fox', { name: 'Sam' });
+    expect(fox.name).toBe('Sam');
+    store.update(fox.id, { name: 'Alex' });
+    expect(createProfileStore(memoryStorage(map)).list()).toEqual([{ id: fox.id, avatar: 'fox', name: 'Alex' }]);
+  });
+
+  it('a blank name means no name', () => {
+    const store = createProfileStore(memoryStorage());
+    const fox = store.add('fox', { name: '   ' });
+    expect(fox.name).toBeUndefined();
+    store.update(fox.id, { name: 'Sam' });
+    store.update(fox.id, { name: '' });
+    expect(store.list()[0].name).toBeUndefined();
+  });
+
+  it('a Profile can be re-pictured, keeping its data', () => {
+    const map = new Map<string, string>();
+    const store = createProfileStore(memoryStorage(map));
+    const fox = store.add('fox');
+    store.save(fox.id, { ...store.load(fox.id), points: 30 });
+    store.update(fox.id, { avatar: 'owl' });
+    const reloaded = createProfileStore(memoryStorage(map));
+    expect(reloaded.list()[0].avatar).toBe('owl');
+    expect(reloaded.load(fox.id).points).toBe(30);
+  });
+
+  it('deleting a Profile removes it and its data, leaving the others', () => {
+    const map = new Map<string, string>();
+    const store = createProfileStore(memoryStorage(map));
+    const fox = store.add('fox');
+    const owl = store.add('owl');
+    store.save(fox.id, { ...store.load(fox.id), points: 30 });
+    store.remove(fox.id);
+    const reloaded = createProfileStore(memoryStorage(map));
+    expect(reloaded.list()).toEqual([owl]);
+    expect(map.has(`kids-chess:profile:${fox.id}:v1`)).toBe(false);
+    expect(reloaded.load(fox.id)).toEqual(DEFAULT_PROFILE_DATA);
+  });
+
+  it('older saved Profiles with no name still load', () => {
+    const storage = memoryStorage(new Map([['kids-chess:profiles:v1', JSON.stringify([{ id: 'a', avatar: 'fox' }])]]));
+    expect(createProfileStore(storage).list()).toEqual([{ id: 'a', avatar: 'fox' }]);
   });
 });

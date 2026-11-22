@@ -1,8 +1,14 @@
 import type { Profile, ProfileStore } from '../core/profiles';
 import { startGame, type Game, type GameAudio } from './game-screen';
+import { showGrownUpArea } from './grown-up-area';
+import { createHold } from './hold';
 import { createMenuChoice, type Choice } from './menu';
 import { AVATARS, avatarById, MINI_GAMES_SVG, NEW_PROFILE_SVG, PLAY_SVG, PUZZLES_SVG, type Avatar } from './pictures';
+import { voiceSwitched } from './speech';
 import { spokenMessage } from './spoken';
+
+/** How long the Grown-up button must be held. Shorter holds do nothing. */
+const GROWN_UP_HOLD_MS = 3000;
 
 export interface AppElements {
   menu: HTMLElement;
@@ -18,6 +24,9 @@ export interface AppElements {
   corner: HTMLButtonElement;
   /** The chosen Profile's avatar, top centre. */
   profileBadge: HTMLElement;
+  grownUpArea: HTMLElement;
+  /** Hold for 3 seconds to open the Grown-up Area. Only shown on the avatar picker. */
+  grownUpButton: HTMLButtonElement;
 }
 
 /** A picture on a menu screen and what Go does once it is selected. */
@@ -34,28 +43,81 @@ interface CornerAction {
 }
 
 /** Thin UI: avatar picker → home → game. Menu choices are spoken and selected; Go confirms. */
-export function startApp(el: AppElements, store: ProfileStore, audio: GameAudio): void {
+export function startApp(el: AppElements, store: ProfileStore, deviceAudio: GameAudio): void {
   let game: Game | undefined;
+  /** The Profile playing now. Before one is picked, the device's voice is used. */
+  let current: Profile | undefined;
+  // Read at each line spoken, so a change in the Grown-up Area applies straight away.
+  const audio: GameAudio = {
+    ...deviceAudio,
+    speaker: voiceSwitched(deviceAudio.speaker, () => !current || store.load(current.id).settings.voice),
+  };
+
+  const hold = createHold(GROWN_UP_HOLD_MS, grownUpArea);
+  // The button's fill animation runs for exactly the hold time.
+  el.grownUpButton.style.setProperty('--hold-ms', `${GROWN_UP_HOLD_MS}ms`);
+  const press = () => {
+    el.grownUpButton.classList.add('holding');
+    hold.press();
+  };
+  const release = () => {
+    hold.release();
+    el.grownUpButton.classList.remove('holding');
+  };
+  el.grownUpButton.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    press();
+  });
+  for (const type of ['pointerup', 'pointerleave', 'pointercancel'] as const) {
+    el.grownUpButton.addEventListener(type, release);
+  }
+  // A long press on a touch screen would otherwise open the browser's menu.
+  el.grownUpButton.addEventListener('contextmenu', (e) => e.preventDefault());
+  el.grownUpButton.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) press();
+  });
+  el.grownUpButton.addEventListener('keyup', release);
 
   function avatarPicker(): void {
+    current = undefined;
     const profiles = store.list();
     // First run: every avatar is a new Profile waiting to be picked.
     if (profiles.length === 0) return newProfile();
-    const items = profiles.map((p) => avatarItem(p.id, avatarById(p.avatar), () => home(p)));
+    const items = profiles.map((p) => avatarItem(p.id, avatarById(p.avatar), () => home(p), p.name));
     if (unusedAvatars().length > 0) {
       items.push({ id: 'new-profile', name: 'New player', picture: NEW_PROFILE_SVG, onGo: newProfile });
     }
     showMenu(items, undefined, undefined);
+    el.grownUpButton.hidden = false;
   }
 
   function newProfile(): void {
     const items = unusedAvatars().map((a) => avatarItem(a.id, a, () => home(store.add(a.id))));
     // On first run there is nowhere to go back to.
-    const back = store.list().length > 0 ? { label: '↩', name: 'Back', action: avatarPicker } : undefined;
+    const firstRun = store.list().length === 0;
+    const back = firstRun ? undefined : { label: '↩', name: 'Back', action: avatarPicker };
     showMenu(items, back, undefined);
+    // On first run this is the picker, so a grown-up can set Profiles up from here.
+    el.grownUpButton.hidden = !firstRun;
+  }
+
+  function grownUpArea(): void {
+    release();
+    el.menu.hidden = true;
+    el.go.hidden = true;
+    el.grownUpButton.hidden = true;
+    showCorner(undefined);
+    showProfileBadge(undefined);
+    el.grownUpArea.hidden = false;
+    showGrownUpArea(el.grownUpArea, store, () => {
+      el.grownUpArea.hidden = true;
+      el.grownUpArea.replaceChildren();
+      avatarPicker();
+    });
   }
 
   function home(profile: Profile): void {
+    current = profile;
     const comingSoon = (name: string) => () => {
       const text = `${name}: coming soon!`;
       audio.speaker.say(text);
@@ -75,6 +137,7 @@ export function startApp(el: AppElements, store: ProfileStore, audio: GameAudio)
   function play(profile: Profile): void {
     el.menu.hidden = true;
     el.go.hidden = true;
+    el.grownUpButton.hidden = true;
     el.game.hidden = false;
     game = startGame({ board: el.board, message: el.message, overlay: el.overlay }, audio);
     const leave = () => {
@@ -124,6 +187,7 @@ export function startApp(el: AppElements, store: ProfileStore, audio: GameAudio)
     el.menuMessage.replaceChildren();
     el.go.hidden = false;
     el.go.classList.remove('ready');
+    el.grownUpButton.hidden = true;
     showCorner(corner);
     showProfileBadge(profile);
 
@@ -159,7 +223,7 @@ export function startApp(el: AppElements, store: ProfileStore, audio: GameAudio)
     const avatar = profile && avatarById(profile.avatar);
     el.profileBadge.hidden = !avatar;
     el.profileBadge.replaceChildren(...(avatar ? [svgPicture(avatar.svg)] : []));
-    if (avatar) el.profileBadge.setAttribute('aria-label', avatar.name);
+    if (avatar) el.profileBadge.setAttribute('aria-label', profile.name ?? avatar.name);
   }
 
   function unusedAvatars(): Avatar[] {
@@ -170,11 +234,14 @@ export function startApp(el: AppElements, store: ProfileStore, audio: GameAudio)
   avatarPicker();
 }
 
-/** An avatar as a menu choice. A Profile whose avatar is unknown still shows, as a plain picture. */
-function avatarItem(id: string, avatar: Avatar | undefined, onGo: () => void): MenuItem {
+/**
+ * An avatar as a menu choice, spoken as the Profile's name if a grown-up gave it one. A Profile whose
+ * avatar is unknown still shows, as a plain picture.
+ */
+function avatarItem(id: string, avatar: Avatar | undefined, onGo: () => void, profileName?: string): MenuItem {
   return {
     id,
-    name: avatar?.name ?? 'Player',
+    name: profileName ?? avatar?.name ?? 'Player',
     picture: avatar?.svg ?? NEW_PROFILE_SVG,
     onGo,
   };

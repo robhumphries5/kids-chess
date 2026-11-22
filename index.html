@@ -15,11 +15,15 @@
         <div id="menu-choices" class="menu-choices"></div>
         <p id="menu-message" class="message" aria-live="polite"></p>
       </section>
+      <section id="grown-up" class="grown-up-area" hidden></section>
       <section id="game" class="game-screen" hidden>
         <div class="board-wrap"><div id="board"></div></div>
         <p id="message" class="message" aria-live="polite"></p>
       </section>
     </main>
+    <button id="grown-up-button" class="grown-up-button" type="button" aria-label="Grown-ups: hold for 3 seconds" hidden>
+      <span class="grown-up-fill" aria-hidden="true"></span><span class="grown-up-icon" aria-hidden="true">🔒</span>
+    </button>
     <button id="go" class="go-button" type="button" aria-label="Go" hidden>Go ▶</button>
     <div id="overlay" class="overlay" hidden></div>
     <script type="module" src="/src/main.ts"></script>

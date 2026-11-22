@@ -1,6 +1,7 @@
 # Glossary
 
 - **Profile**: one child's identity on this device, chosen by tapping an avatar picture. No passwords. Holds Points, Sticker Book, Puzzle Ladder level, Opponents beaten and Settings. Stored in localStorage only.
+- **Help preset**: "Lots of help" or "Some help", chosen by a grown-up when making a Profile. Sets the starting values of the Move Colours, Blunder Warning and Missed-Chance Alert switches. Lots: all on. Some: Move Colours and spoken reasons on, warnings and alerts only for checkmate and the queen. Replaces storing children's names or ages in the repo.
 - **Grown-up Area**: settings and progress screen behind a hold-for-3-seconds button. Manages Profiles and their Settings.
 - **Go Button**: the big confirm button that always sits in the same place. Tapping any menu choice speaks its name and selects it; Go confirms it. Not used for chess moves.
 - **Speak**: reading text aloud with the browser's built-in en-GB voice. Every message has a 🔊 replay.

@@ -257,3 +257,93 @@ html, body {
 }
 .confirm-choice:active { transform: scale(0.95); }
 .confirm-icon { font-size: 3.5rem; line-height: 1; }
+
+/* Grown-up button: bottom-left on the avatar picker. Holding fills it over 3 seconds; letting go empties it. */
+.grown-up-button {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: 1rem;
+  z-index: 5;
+  width: 3.2rem;
+  height: 3.2rem;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid #b5afa6;
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 1.3rem;
+  opacity: 0.7;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+.grown-up-fill {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+.grown-up-button.holding { opacity: 1; }
+.grown-up-button.holding .grown-up-fill { transform: scaleY(1); transition: transform var(--hold-ms, 3s) linear; }
+.grown-up-icon { position: relative; }
+
+/* The Grown-up Area: for adults, so ordinary words and controls. */
+.grown-up-area {
+  width: min(40rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 2rem;
+}
+.grown-up-area input[type='text'] { -webkit-user-select: text; user-select: text; }
+.grown-up-header { display: flex; align-items: center; justify-content: space-between; }
+.grown-up-header h1 { margin: 0; font-size: 1.8rem; }
+.grown-up-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem 1.2rem;
+  border-radius: 1rem;
+  background: var(--card);
+  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 0.12);
+}
+.grown-up-card h2 { margin: 0; font-size: 1.4rem; }
+.grown-up-card-heading { display: flex; align-items: center; gap: 0.8rem; }
+.grown-up-picture { display: block; width: 3rem; height: 3rem; flex: none; }
+.grown-up-picture svg { width: 100%; height: 100%; display: block; }
+.grown-up-field { display: flex; flex-direction: column; gap: 0.35rem; }
+.grown-up-label { font-weight: 700; }
+.grown-up-note { margin: 0; font-size: 0.9rem; opacity: 0.75; }
+.grown-up-name, .grown-up-field select {
+  font: inherit;
+  font-size: 1.1rem;
+  padding: 0.4rem 0.6rem;
+  border: 2px solid #cfc9bf;
+  border-radius: 0.5rem;
+  background: white;
+  color: var(--ink);
+  max-width: 20rem;
+}
+.grown-up-avatars { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.grown-up-avatar {
+  width: 3.6rem;
+  height: 3.6rem;
+  padding: 0.25rem;
+  border: 3px solid transparent;
+  border-radius: 0.8rem;
+  background: var(--bg);
+  cursor: pointer;
+}
+.grown-up-avatar .grown-up-picture { width: 100%; height: 100%; }
+.grown-up-avatar[aria-pressed='true'] { border-color: var(--accent); }
+.grown-up-settings { border: 2px solid #e4dfd6; border-radius: 0.6rem; padding: 0.4rem 0.8rem 0.6rem; }
+.grown-up-settings legend { font-weight: 700; padding: 0 0.3rem; }
+.grown-up-switch { display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; padding: 0.2rem 0; }
+.grown-up-switch input { width: 1.3rem; height: 1.3rem; accent-color: var(--accent); }
+.grown-up-presets { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; }
+.grown-up-delete { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.grown-up-delete p { margin: 0; width: 100%; }
+.grown-up-card .big-button { align-self: flex-start; font-size: 1.2rem; padding: 0.6rem 1.6rem; }
+.big-button:disabled { opacity: 0.45; cursor: default; }
+.small-button.danger { border-color: #b8432f; color: #b8432f; }

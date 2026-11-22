@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createSpeaker } from './speech';
+import { createSpeaker, voiceSwitched } from './speech';
 
 interface FakeUtterance {
   text: string;
@@ -63,5 +63,19 @@ describe('Speaker', () => {
   it('is silent, not broken, when speechSynthesis is missing', () => {
     const speaker = createSpeaker(undefined, undefined);
     expect(() => speaker.say('Check!')).not.toThrow();
+  });
+});
+
+describe('Voice switch', () => {
+  it('speaks while the voice is on and stays silent while it is off', () => {
+    const said: string[] = [];
+    let on = true;
+    const speaker = voiceSwitched({ say: (t) => void said.push(t) }, () => on);
+    speaker.say('Play');
+    on = false;
+    speaker.say('Puzzles');
+    on = true;
+    speaker.say('Go home?');
+    expect(said).toEqual(['Play', 'Go home?']);
   });
 });
