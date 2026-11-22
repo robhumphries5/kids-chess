@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSession, type SessionEvent } from './session';
 import type { Opponent } from '../opponents/opponent';
+import { createSavedGameStore } from './saved-game';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -326,6 +327,215 @@ describe('Opponent game Session', () => {
       expect(events[0]).toMatchObject({ type: 'board-changed' });
       if (events[0].type !== 'board-changed') throw new Error();
       expect(events[0].fen.startsWith(`1${piece.toUpperCase()}5k/`)).toBe(true);
+    });
+  });
+
+  describe('undo', () => {
+    it('takes back the child’s move and the Opponent’s reply', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white' });
+      await session.start();
+      await session.move({ from: 'e2', to: 'e4' });
+      const events = await session.undo();
+      expect(events).toEqual([
+        expect.objectContaining({ type: 'board-changed', fen: START, childToMove: true, lastMove: undefined }),
+      ]);
+      if (events[0].type !== 'board-changed') throw new Error();
+      expect(events[0].dests['e2']).toEqual(['e3', 'e4']);
+    });
+
+    it('works several times in a row, all the way back to the start', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5', 'b8c6'), childColour: 'white' });
+      await session.start();
+      await session.move({ from: 'e2', to: 'e4' });
+      await session.move({ from: 'g1', to: 'f3' });
+      expect(await session.undo()).toEqual([
+        expect.objectContaining({
+          fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+          lastMove: ['e7', 'e5'],
+          childToMove: true,
+        }),
+      ]);
+      expect(await session.undo()).toEqual([expect.objectContaining({ fen: START, childToMove: true })]);
+      // Nothing left to take back: the board stays at the start.
+      expect(await session.undo()).toEqual([expect.objectContaining({ fen: START, childToMove: true })]);
+    });
+
+    it('never takes back the Opponent’s first move when the child is black and has not moved', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('d2d4', 'c2c4'), childColour: 'black' });
+      await session.start();
+      const afterD4 = 'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1';
+      expect(await session.undo()).toEqual([expect.objectContaining({ fen: afterD4, childToMove: true })]);
+      await session.move({ from: 'd7', to: 'd5' });
+      expect(await session.undo()).toEqual([expect.objectContaining({ fen: afterD4, childToMove: true })]);
+    });
+
+    it('once the game is over there is nothing to undo: the result stands', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('a7a1'),
+        childColour: 'white',
+        fen: '6k1/r7/8/8/8/8/1P3PPP/6K1 w - - 0 1',
+      });
+      await session.start();
+      await session.move({ from: 'b2', to: 'b3' });
+      expect(await session.undo()).toEqual([expect.objectContaining({ fen: '6k1/8/8/8/8/1P6/5PPP/r5K1 w - - 1 2' })]);
+    });
+
+    it('the board says whether there is anything to undo or redo', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white' });
+      expect(await session.start()).toEqual([expect.objectContaining({ canUndo: false, canRedo: false })]);
+      const moved = await session.move({ from: 'e2', to: 'e4' });
+      expect(moved.at(-2)).toMatchObject({ type: 'board-changed', canUndo: true, canRedo: false });
+      expect(await session.undo()).toEqual([expect.objectContaining({ canUndo: false, canRedo: true })]);
+    });
+  });
+
+  describe('redo', () => {
+    it('steps forward again, replaying the Opponent’s reply without asking it again', async () => {
+      // The scripted Opponent would throw if asked for a second move.
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white' });
+      await session.start();
+      await session.move({ from: 'e2', to: 'e4' });
+      await session.undo();
+      expect(await session.redo()).toEqual([
+        expect.objectContaining({
+          type: 'board-changed',
+          fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+          lastMove: ['e7', 'e5'],
+          childToMove: true,
+          canUndo: true,
+          canRedo: false,
+        }),
+      ]);
+    });
+
+    it('steps forward one turn at a time, up to the latest move', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5', 'b8c6'), childColour: 'white' });
+      await session.start();
+      await session.move({ from: 'e2', to: 'e4' });
+      await session.move({ from: 'g1', to: 'f3' });
+      await session.undo();
+      await session.undo();
+      await session.redo();
+      expect(await session.redo()).toEqual([
+        expect.objectContaining({ lastMove: ['b8', 'c6'], canRedo: false }),
+      ]);
+      // Nothing more to replay.
+      expect(await session.redo()).toEqual([expect.objectContaining({ lastMove: ['b8', 'c6'] })]);
+    });
+
+    it('a different move after undo means there is nothing to redo', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5', 'e7e5'), childColour: 'white' });
+      await session.start();
+      await session.move({ from: 'e2', to: 'e4' });
+      await session.undo();
+      const moved = await session.move({ from: 'd2', to: 'd4' });
+      expect(moved.at(-2)).toMatchObject({ type: 'board-changed', canRedo: false });
+      expect(await session.redo()).toEqual([expect.objectContaining({ lastMove: ['e7', 'e5'], canRedo: false })]);
+    });
+  });
+
+  describe('save and resume', () => {
+    const saving = () => ({ store: createSavedGameStore(undefined), profileId: 'fox' });
+
+    it('saves the game (moves, Opponent and colour) after every move', async () => {
+      const saveTo = saving();
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white', saveTo });
+      await session.start();
+      expect(saveTo.store.load('fox')).toBeUndefined();
+      await session.move({ from: 'e2', to: 'e4' });
+      expect(saveTo.store.load('fox')).toEqual({ opponentId: 'scripted', childColour: 'white', moves: ['e4', 'e5'] });
+    });
+
+    it('saves the child’s move before the Opponent has replied', async () => {
+      const saveTo = saving();
+      let seen: unknown;
+      const opponent: Opponent = {
+        id: 'peeking',
+        name: 'Peeking',
+        async pickMove() {
+          seen = saveTo.store.load('fox');
+          return { from: 'e7', to: 'e5' };
+        },
+      };
+      const session = createSession({ kind: 'opponent-game', opponent, childColour: 'white', saveTo });
+      await session.start();
+      await session.move({ from: 'e2', to: 'e4' });
+      expect(seen).toEqual({ opponentId: 'peeking', childColour: 'white', moves: ['e4'] });
+    });
+
+    it('saves after the Opponent’s first move when the child is black', async () => {
+      const saveTo = saving();
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('d2d4'), childColour: 'black', saveTo });
+      await session.start();
+      expect(saveTo.store.load('fox')).toEqual({ opponentId: 'scripted', childColour: 'black', moves: ['d4'] });
+    });
+
+    it('Undo and Redo are saved too', async () => {
+      const saveTo = saving();
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white', saveTo });
+      await session.start();
+      await session.move({ from: 'e2', to: 'e4' });
+      await session.undo();
+      expect(saveTo.store.load('fox')?.moves).toEqual([]);
+      await session.redo();
+      expect(saveTo.store.load('fox')?.moves).toEqual(['e4', 'e5']);
+    });
+
+    it('finishing a game clears the saved game', async () => {
+      const saveTo = saving();
+      const fen = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
+      saveTo.store.save('fox', { opponentId: 'scripted', childColour: 'white', moves: [], fen });
+      const session = createSession({ kind: 'opponent-game', opponent: scripted(), childColour: 'white', fen, saveTo });
+      await session.start();
+      await session.move({ from: 'a1', to: 'a8' });
+      expect(saveTo.store.load('fox')).toBeUndefined();
+    });
+
+    it('a game from a starting position saves that position', async () => {
+      const saveTo = saving();
+      const fen = '4k3/8/8/8/8/8/8/R5K1 w - - 0 1';
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e8d8'), childColour: 'white', fen, saveTo });
+      await session.start();
+      await session.move({ from: 'a1', to: 'a2' });
+      expect(saveTo.store.load('fox')).toEqual({ opponentId: 'scripted', childColour: 'white', moves: ['Ra2', 'Kd8'], fen });
+    });
+
+    it('resuming restores the same position, ready for the child to carry on', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('b8c6'),
+        childColour: 'white',
+        moves: ['e4', 'e5'],
+      });
+      expect(await session.start()).toEqual([
+        expect.objectContaining({
+          type: 'board-changed',
+          fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+          lastMove: ['e7', 'e5'],
+          childToMove: true,
+          canUndo: true,
+        }),
+      ]);
+      // Undo reaches back into the resumed moves.
+      expect(await session.undo()).toEqual([expect.objectContaining({ fen: START })]);
+    });
+
+    it('resuming a game saved before the Opponent replied lets the Opponent reply', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white', moves: ['e4'] });
+      const events = await session.start();
+      expect(events).toContainEqual(expect.objectContaining({ type: 'opponent-moved', san: 'e5' }));
+    });
+
+    it('a corrupt saved move stops the replay there, without crashing', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('e7e5'),
+        childColour: 'white',
+        moves: ['e4', 'Qxz9', 'e5'],
+      });
+      const events = await session.start();
+      expect(events[0]).toMatchObject({ fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1' });
     });
   });
 });

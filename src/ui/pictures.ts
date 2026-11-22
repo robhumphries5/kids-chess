@@ -122,10 +122,23 @@ export const PIG_SVG = svg(
     `<path d="M36 78 Q50 88 64 78" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/>`,
 );
 
+/** Dragon: a friendly green dragon with little horns, spiky crest and a puff of smoke. */
+export const DRAGON_SVG = svg(
+  `<path d="M30 22 L22 4 L40 16 Z" fill="#f5c84c"/><path d="M70 22 L78 4 L60 16 Z" fill="#f5c84c"/>` +
+    `<path d="M40 12 L46 2 L50 12 L54 2 L60 12 Z" fill="#3f9a5a"/>` +
+    `<path d="M14 46 Q14 14 50 14 Q86 14 86 46 Q86 62 76 70 Q72 92 50 92 Q28 92 24 70 Q14 62 14 46 Z" fill="#56b870"/>` +
+    `<ellipse cx="50" cy="74" rx="22" ry="15" fill="#a7e0a1"/>` +
+    eyes(44, 16, 6) +
+    `<circle cx="43" cy="68" r="2.5" fill="#2b2b2b"/><circle cx="57" cy="68" r="2.5" fill="#2b2b2b"/>` +
+    `<path d="M40 79 Q50 86 60 79" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="84" cy="22" r="6" fill="#dfe3e8"/><circle cx="92" cy="12" r="4" fill="#dfe3e8"/>`,
+);
+
 /** Each Opponent's picture on the Opponent picker, by Opponent id. */
 export const OPPONENT_PICTURES: Readonly<Record<string, string>> = {
   snail: PLAY_SVG,
   pig: PIG_SVG,
+  dragon: DRAGON_SVG,
 };
 
 const pawn = (fill: string, stroke: string) =>
@@ -146,4 +159,14 @@ export const DICE_SVG = svg(
   `<rect x="16" y="16" width="68" height="68" rx="14" fill="#fff" stroke="#e3423b" stroke-width="6"/>` +
     `<circle cx="34" cy="34" r="6" fill="#e3423b"/><circle cx="50" cy="50" r="6" fill="#e3423b"/><circle cx="66" cy="66" r="6" fill="#e3423b"/>` +
     `<circle cx="66" cy="34" r="6" fill="#e3423b"/><circle cx="34" cy="66" r="6" fill="#e3423b"/>`,
+);
+
+/** Start a new game instead of carrying on: a fresh little board with a sparkle. */
+export const NEW_GAME_SVG = svg(
+  `<rect x="14" y="22" width="64" height="64" rx="6" fill="#f0d9b5" stroke="#8a5a32" stroke-width="5"/>` +
+    [0, 1, 2, 3]
+      .flatMap((row) => [0, 1, 2, 3].filter((col) => (row + col) % 2 === 1).map((col) => [row, col]))
+      .map(([row, col]) => `<rect x="${16 + col * 15}" y="${24 + row * 15}" width="15" height="15" fill="#b58863"/>`)
+      .join('') +
+    `<path d="M80 8 L84 18 L94 22 L84 26 L80 36 L76 26 L66 22 L76 18 Z" fill="#ffc83d" stroke="#e0a000" stroke-width="2" stroke-linejoin="round"/>`,
 );

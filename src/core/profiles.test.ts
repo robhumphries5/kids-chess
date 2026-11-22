@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createProfileStore, DEFAULT_PROFILE_DATA, type KeyValueStorage } from './profiles';
+import { createSavedGameStore } from './saved-game';
 
 /** An in-memory stand-in for localStorage. Pass the same map to a second store to simulate a reload. */
 function memoryStorage(map = new Map<string, string>()): KeyValueStorage & { map: Map<string, string> } {
@@ -247,6 +248,15 @@ describe('Managing Profiles', () => {
     expect(reloaded.list()).toEqual([owl]);
     expect(map.has(`kids-chess:profile:${fox.id}:v1`)).toBe(false);
     expect(reloaded.load(fox.id)).toEqual(DEFAULT_PROFILE_DATA);
+  });
+
+  it('deleting a Profile also forgets its game in progress', () => {
+    const storage = memoryStorage();
+    const store = createProfileStore(storage);
+    const fox = store.add('fox');
+    createSavedGameStore(storage).save(fox.id, { opponentId: 'pig', childColour: 'white', moves: ['e4'] });
+    store.remove(fox.id);
+    expect(createSavedGameStore(storage).load(fox.id)).toBeUndefined();
   });
 
   it('older saved Profiles with no name still load', () => {

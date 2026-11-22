@@ -1,6 +1,7 @@
 import type { ColourChoice } from '../core/colour';
 import type { Profile, ProfileStore } from '../core/profiles';
-import { OPPONENTS, type OpponentCharacter } from '../opponents/roster';
+import { createSavedGameStore, type SavedGame, type SavedGameStore } from '../core/saved-game';
+import { OPPONENTS, opponentById, type OpponentCharacter } from '../opponents/roster';
 import { startGame, type Game, type GameAudio } from './game-screen';
 import { showGrownUpArea } from './grown-up-area';
 import { createHold } from './hold';
@@ -11,6 +12,7 @@ import {
   BLACK_PAWN_SVG,
   DICE_SVG,
   MINI_GAMES_SVG,
+  NEW_GAME_SVG,
   NEW_PROFILE_SVG,
   OPPONENT_PICTURES,
   PLAY_SVG,
@@ -34,6 +36,8 @@ export interface AppElements {
   board: HTMLElement;
   message: HTMLElement;
   overlay: HTMLElement;
+  /** Undo and Redo, beside the board in games against an Opponent. */
+  gameControls: HTMLElement;
   /** The one Go Button, shared by every menu screen so it never moves. */
   go: HTMLButtonElement;
   /** Top-left: Back, Change player or Home, depending on the screen. */
@@ -61,7 +65,12 @@ interface CornerAction {
 }
 
 /** Thin UI: avatar picker → home → game. Menu choices are spoken and selected; Go confirms. */
-export function startApp(el: AppElements, store: ProfileStore, deviceAudio: GameAudio): void {
+export function startApp(
+  el: AppElements,
+  store: ProfileStore,
+  deviceAudio: GameAudio,
+  savedGames: SavedGameStore = createSavedGameStore(),
+): void {
   let game: Game | undefined;
   /** The Profile playing now. Before one is picked, the device's voice is used. */
   let current: Profile | undefined;
@@ -144,10 +153,33 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
     showMenu(
       [
         { id: 'puzzles', name: 'Puzzles', picture: PUZZLES_SVG, onGo: () => puzzles(profile) },
-        { id: 'play', name: 'Play', picture: PLAY_SVG, onGo: () => opponentPicker(profile) },
+        { id: 'play', name: 'Play', picture: PLAY_SVG, onGo: () => carryOnOrNew(profile) },
         { id: 'mini-games', name: 'Mini-games', picture: MINI_GAMES_SVG, onGo: comingSoon('Mini-games') },
       ],
       { label: '↩', name: 'Change player', action: avatarPicker },
+      profile,
+    );
+  }
+
+  /**
+   * A game left unfinished last time is offered first: carry on (the Opponent's picture) or start a
+   * new one. The saved game is only replaced once a new game has a move in it.
+   */
+  function carryOnOrNew(profile: Profile): void {
+    const saved = savedGames.load(profile.id);
+    const character = saved && opponentById(saved.opponentId);
+    if (!saved || !character) return opponentPicker(profile);
+    showMenu(
+      [
+        {
+          id: 'carry-on',
+          name: `Carry on playing ${character.name}`,
+          picture: OPPONENT_PICTURES[character.id] ?? PLAY_SVG,
+          onGo: () => play(profile, character, saved.childColour, saved),
+        },
+        { id: 'new-game', name: 'New game', picture: NEW_GAME_SVG, onGo: () => opponentPicker(profile) },
+      ],
+      { label: '↩', name: 'Back', action: () => home(profile) },
       profile,
     );
   }
@@ -177,12 +209,18 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
     );
   }
 
-  function play(profile: Profile, opponent: OpponentCharacter, colour: ColourChoice): void {
+  function play(profile: Profile, opponent: OpponentCharacter, colour: ColourChoice, resume?: SavedGame): void {
     el.menu.hidden = true;
     el.go.hidden = true;
     el.grownUpButton.hidden = true;
     el.game.hidden = false;
-    game = startGame({ board: el.board, message: el.message, overlay: el.overlay }, audio, opponent, colour);
+    game = startGame(
+      { board: el.board, message: el.message, overlay: el.overlay, controls: el.gameControls },
+      audio,
+      opponent,
+      colour,
+      { store: savedGames, profileId: profile.id, resume },
+    );
     const leave = () => {
       game?.stop();
       game = undefined;
@@ -214,7 +252,8 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
   }
 
   /**
-   * One tap on 🏠 mid-game asks first, so a game isn't lost by accident. No Go Button on the game
+   * One tap on 🏠 mid-game asks first, so a game isn't left by accident (it is saved either way, and
+   * leaving costs nothing: Play offers to carry on). No Go Button on the game
    * screen: the card's own two big buttons answer. "Keep playing" puts back whatever card was showing
    * (say, the Promotion Picker).
    */
