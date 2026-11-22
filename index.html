@@ -4,12 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <meta name="theme-color" content="#7fb069" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Chess" />
     <title>Kids Chess</title>
   </head>
   <body>
     <button id="mute" class="mute-button" type="button"></button>
     <button id="corner" class="corner-button" type="button" hidden></button>
     <div id="profile-badge" class="profile-badge" role="img" hidden></div>
+    <div id="star-jar" class="star-jar" role="img" hidden></div>
     <main class="app">
       <section id="menu" class="menu-screen" hidden>
         <div id="menu-choices" class="menu-choices"></div>

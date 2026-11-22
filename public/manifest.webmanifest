@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Kids Chess",
+  "short_name": "Chess",
+  "description": "Learn chess with friendly animals, puzzles and games.",
+  "lang": "en-GB",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#f3f1ec",
+  "theme_color": "#7fb069",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
