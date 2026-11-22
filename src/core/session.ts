@@ -59,7 +59,19 @@ export interface GameOver {
   reason: GameOverReason;
 }
 
-export type SessionEvent = BoardChanged | OpponentMoved | MoveRejected | PromotionNeeded | GameOver;
+/** Something to read aloud (and show, with a 🔊 replay). British English. */
+export interface Say {
+  type: 'say';
+  text: string;
+}
+
+/** One sound effect per move landing. Check beats capture; winning beats both. Losing has no special sound. */
+export interface SoundCue {
+  type: 'sound';
+  sound: 'move' | 'capture' | 'check' | 'win';
+}
+
+export type SessionEvent = BoardChanged | OpponentMoved | MoveRejected | PromotionNeeded | GameOver | Say | SoundCue;
 
 export interface Session {
   start(): Promise<SessionEvent[]>;
@@ -106,6 +118,30 @@ export function createSession(options: SessionOptions): Session {
     return played;
   }
 
+  /** Everything that follows a move landing: the new board, what to say, and the end of the game if it has ended. */
+  function afterMove(captured: boolean): SessionEvent[] {
+    const ended = gameOver();
+    const check = chess.inCheck();
+    const sound: SoundCue = {
+      type: 'sound',
+      sound: ended[0]?.result === 'won' ? 'win' : check ? 'check' : captured ? 'capture' : 'move',
+    };
+    const text = ended.length ? spokenResult(ended[0]) : check ? 'Check!' : undefined;
+    const say: Say[] = text ? [{ type: 'say', text }] : [];
+    return [boardChanged(), sound, ...say, ...ended];
+  }
+
+  /** One message for the end of the game (two would cut each other off when spoken). Gentle when the child loses. */
+  function spokenResult({ result, reason }: GameOver): string {
+    const message =
+      result === 'won'
+        ? 'You won! Well done!'
+        : result === 'lost'
+          ? `${options.opponent.name} won this time! Good game!`
+          : 'It’s a draw! Good game!';
+    return reason === 'checkmate' ? `Checkmate! ${message}` : message;
+  }
+
   /** A game-over event if the game has just ended, else nothing. */
   function gameOver(): GameOver[] {
     if (!chess.isGameOver()) return [];
@@ -125,7 +161,7 @@ export function createSession(options: SessionOptions): Session {
 
   async function opponentTurn(): Promise<SessionEvent[]> {
     const played = play(await options.opponent.pickMove(chess.fen()));
-    return [{ type: 'opponent-moved', from: played.from, to: played.to, san: played.san }, boardChanged(), ...gameOver()];
+    return [{ type: 'opponent-moved', from: played.from, to: played.to, san: played.san }, ...afterMove(Boolean(played.captured))];
   }
 
   return {
@@ -143,8 +179,8 @@ export function createSession(options: SessionOptions): Session {
       if (!candidates.some((m) => m.promotion === move.promotion)) {
         return [{ type: 'move-rejected', from: move.from, to: move.to }, boardChanged()];
       }
-      play(move);
-      const afterChild = [boardChanged(), ...gameOver()];
+      const played = play(move);
+      const afterChild = afterMove(Boolean(played.captured));
       if (chess.isGameOver()) return afterChild;
       return [...afterChild, ...(await opponentTurn())];
     },

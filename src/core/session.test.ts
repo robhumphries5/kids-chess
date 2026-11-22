@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createSession } from './session';
+import { createSession, type SessionEvent } from './session';
 import type { Opponent } from '../opponents/opponent';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -34,7 +34,7 @@ describe('Opponent game Session', () => {
   it('when the child plays black, the Opponent moves first', async () => {
     const session = createSession({ kind: 'opponent-game', opponent: scripted('d2d4'), childColour: 'black' });
     const events = await session.start();
-    expect(events.map((e) => e.type)).toEqual(['board-changed', 'opponent-moved', 'board-changed']);
+    expect(events.map((e) => e.type)).toEqual(['board-changed', 'opponent-moved', 'board-changed', 'sound']);
     expect(events[0]).toMatchObject({ fen: START, childToMove: false });
     expect(events[2]).toMatchObject({ childToMove: true, lastMove: ['d2', 'd4'] });
     if (events[2].type !== 'board-changed') throw new Error();
@@ -45,7 +45,7 @@ describe('Opponent game Session', () => {
     const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white' });
     await session.start();
     const events = await session.move({ from: 'e2', to: 'e4' });
-    expect(events.map((e) => e.type)).toEqual(['board-changed', 'opponent-moved', 'board-changed']);
+    expect(events.map((e) => e.type)).toEqual(['board-changed', 'sound', 'opponent-moved', 'board-changed', 'sound']);
     expect(events[0]).toMatchObject({
       fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
       turn: 'black',
@@ -53,8 +53,8 @@ describe('Opponent game Session', () => {
       childToMove: false,
       dests: {},
     });
-    expect(events[1]).toMatchObject({ type: 'opponent-moved', from: 'e7', to: 'e5', san: 'e5' });
-    expect(events[2]).toMatchObject({
+    expect(events[2]).toMatchObject({ type: 'opponent-moved', from: 'e7', to: 'e5', san: 'e5' });
+    expect(events[3]).toMatchObject({
       fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
       childToMove: true,
       lastMove: ['e7', 'e5'],
@@ -70,7 +70,7 @@ describe('Opponent game Session', () => {
     ]);
     // The game carries on normally afterwards.
     const events = await session.move({ from: 'e2', to: 'e4' });
-    expect(events[1]).toMatchObject({ type: 'opponent-moved', san: 'e5' });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'opponent-moved', san: 'e5' }));
   });
 
   describe('game over', () => {
@@ -83,10 +83,9 @@ describe('Opponent game Session', () => {
       });
       await session.start();
       const events = await session.move({ from: 'a1', to: 'a8' });
-      expect(events).toEqual([
-        expect.objectContaining({ type: 'board-changed', childToMove: false, dests: {}, check: true }),
-        { type: 'game-over', result: 'won', reason: 'checkmate' },
-      ]);
+      expect(events[0]).toMatchObject({ type: 'board-changed', childToMove: false, dests: {}, check: true });
+      expect(events.at(-1)).toEqual({ type: 'game-over', result: 'won', reason: 'checkmate' });
+      expect(events.some((e) => e.type === 'opponent-moved')).toBe(false);
     });
 
     it('the Opponent checkmating means the child lost', async () => {
@@ -98,8 +97,7 @@ describe('Opponent game Session', () => {
       });
       await session.start();
       const events = await session.move({ from: 'b2', to: 'b3' });
-      expect(events.map((e) => e.type)).toEqual(['board-changed', 'opponent-moved', 'board-changed', 'game-over']);
-      expect(events[3]).toEqual({ type: 'game-over', result: 'lost', reason: 'checkmate' });
+      expect(events.at(-1)).toEqual({ type: 'game-over', result: 'lost', reason: 'checkmate' });
     });
 
     it('stalemate is a draw', async () => {
@@ -154,6 +152,106 @@ describe('Opponent game Session', () => {
     });
   });
 
+  describe('speaking and sounds', () => {
+    const said = (events: SessionEvent[]) => events.flatMap((e) => (e.type === 'say' ? [e.text] : []));
+    const sounds = (events: SessionEvent[]) => events.flatMap((e) => (e.type === 'sound' ? [e.sound] : []));
+
+    it('the child giving check says "Check!"', async () => {
+      // Rook to e1 checks the black king on e8.
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('e8d8'),
+        childColour: 'white',
+        fen: '4k3/8/8/8/8/8/8/R5K1 w - - 0 1',
+      });
+      await session.start();
+      const events = await session.move({ from: 'a1', to: 'e1' });
+      expect(said(events)).toEqual(['Check!']);
+    });
+
+    it('the child checkmating says "Checkmate!" and that they won, once', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted(),
+        childColour: 'white',
+        fen: '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1',
+      });
+      await session.start();
+      expect(said(await session.move({ from: 'a1', to: 'a8' }))).toEqual(['Checkmate! You won! Well done!']);
+    });
+
+    it('the Opponent checkmating says "Checkmate!" and gently names the winner', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('a7a1'),
+        childColour: 'white',
+        fen: '6k1/r7/8/8/8/8/1P3PPP/6K1 w - - 0 1',
+      });
+      await session.start();
+      expect(said(await session.move({ from: 'b2', to: 'b3' }))).toEqual([
+        'Checkmate! Scripted won this time! Good game!',
+      ]);
+    });
+
+    it('a draw says so', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted(),
+        childColour: 'white',
+        fen: 'k7/8/1K6/8/8/8/8/2Q5 w - - 0 1',
+      });
+      await session.start();
+      expect(said(await session.move({ from: 'c1', to: 'c7' }))).toEqual(['It’s a draw! Good game!']);
+    });
+
+    it('each move makes one sound: a plain move, then a capture', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('d7d5', 'd8d5'), childColour: 'white' });
+      await session.start();
+      // The child's e4 and the Opponent's d5 are plain moves.
+      expect(sounds(await session.move({ from: 'e2', to: 'e4' }))).toEqual(['move', 'move']);
+      // exd5 is a capture, and so is the queen taking back.
+      expect(sounds(await session.move({ from: 'e4', to: 'd5' }))).toEqual(['capture', 'capture']);
+    });
+
+    it('a check makes the check sound, even when it captures', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('e8d8'),
+        childColour: 'white',
+        fen: '4k3/8/8/8/4p3/8/8/4R1K1 w - - 0 1',
+      });
+      await session.start();
+      // Rxe4+ takes the pawn and checks the king; the king steps aside.
+      expect(sounds(await session.move({ from: 'e1', to: 'e4' }))).toEqual(['check', 'move']);
+    });
+
+    it('winning makes the win sound; losing makes no special sound', async () => {
+      const win = createSession({
+        kind: 'opponent-game',
+        opponent: scripted(),
+        childColour: 'white',
+        fen: '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1',
+      });
+      await win.start();
+      expect(sounds(await win.move({ from: 'a1', to: 'a8' }))).toEqual(['win']);
+
+      const lose = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('a7a1'),
+        childColour: 'white',
+        fen: '6k1/r7/8/8/8/8/1P3PPP/6K1 w - - 0 1',
+      });
+      await lose.start();
+      expect(sounds(await lose.move({ from: 'b2', to: 'b3' }))).toEqual(['move', 'check']);
+    });
+
+    it('a quiet move says nothing', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('e7e5'), childColour: 'white' });
+      await session.start();
+      expect(said(await session.move({ from: 'e2', to: 'e4' }))).toEqual([]);
+    });
+  });
+
   describe('promotion', () => {
     // White pawn on b7 about to promote; kings far apart.
     const PROMO = '7k/1P6/8/8/8/8/8/K7 w - - 0 1';
@@ -177,7 +275,7 @@ describe('Opponent game Session', () => {
         { type: 'promotion-needed', from: 'b7', to: 'b8' },
       ]);
       const events = await session.move({ from: 'b7', to: 'b8', promotion: 'n' });
-      expect(events.map((e) => e.type)).toEqual(['board-changed', 'opponent-moved', 'board-changed']);
+      expect(events.map((e) => e.type)).toEqual(['board-changed', 'sound', 'opponent-moved', 'board-changed', 'sound']);
       expect(events[0]).toMatchObject({ fen: '1N5k/8/8/8/8/8/P7/K7 b - - 0 1', lastMove: ['b7', 'b8'] });
     });
 

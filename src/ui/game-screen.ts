@@ -1,9 +1,11 @@
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key, Role } from 'chessground/types';
-import { createSession, type BoardChanged, type Colour, type GameOver, type SessionEvent } from '../core/session';
+import { createSession, type BoardChanged, type Colour, type SessionEvent } from '../core/session';
 import type { MoveChoice, PromotionPiece } from '../opponents/opponent';
 import { createSnail } from '../opponents/snail';
+import type { Sound } from './sound';
+import type { Speaker } from './speech';
 
 /** The Promotion Picker's choices, in order. `role` is chessground's piece class, so the pictures match the board. */
 const PROMOTION_CHOICES: readonly { piece: PromotionPiece; name: string; role: Role }[] = [
@@ -19,15 +21,25 @@ const OPPONENT_DELAY_MS = 600;
 interface Elements {
   board: HTMLElement;
   status: HTMLElement;
+  /** Where the latest spoken message is shown, with its 🔊 replay. */
+  message: HTMLElement;
   overlay: HTMLElement;
 }
 
+/** The Speak and Sound adapters, shared across games. */
+export interface GameAudio {
+  speaker: Speaker;
+  sound: Sound;
+}
+
 /** Thin UI: renders Session events and forwards the child's moves. No chess rules here. */
-export function startGame(el: Elements, childColour: Colour = 'white'): void {
+export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 'white'): void {
   const opponent = createSnail();
   const session = createSession({ kind: 'opponent-game', opponent, childColour });
   let busy = false;
   let lastBoardEvent: BoardChanged | undefined;
+  let lastSaid = '';
+  el.message.replaceChildren();
 
   const cg: Api = Chessground(el.board, {
     orientation: childColour,
@@ -44,6 +56,8 @@ export function startGame(el: Elements, childColour: Colour = 'white'): void {
     if (busy) return;
     busy = true;
     cg.set({ movable: { color: undefined } });
+    // The child has moved on, so the last message (say, "Check!") is finished with.
+    el.message.replaceChildren();
     try {
       await render(await session.move(move));
     } finally {
@@ -74,8 +88,16 @@ export function startGame(el: Elements, childColour: Colour = 'white'): void {
         case 'promotion-needed':
           showPromotionPicker(event.from, event.to);
           break;
+        case 'sound':
+          audio.sound.play(event.sound);
+          break;
+        case 'say':
+          lastSaid = event.text;
+          audio.speaker.say(event.text);
+          el.message.replaceChildren(spokenMessage(event.text));
+          break;
         case 'game-over':
-          showResult(event);
+          showResult();
           break;
         case 'move-rejected':
           break;
@@ -119,32 +141,42 @@ export function startGame(el: Elements, childColour: Colour = 'white'): void {
     });
   }
 
-  function showResult(event: GameOver): void {
-    const message =
-      event.result === 'won'
-        ? 'You won! Well done!'
-        : event.result === 'lost'
-          ? `${opponent.name} won this time! Good game!`
-          : 'It’s a draw! Good game!';
-    el.status.textContent = message;
-    showCard(message, (body) => {
+  /** A message that was spoken, with a 🔊 button to hear it again. */
+  function spokenMessage(text: string): HTMLElement {
+    const line = document.createElement('span');
+    line.className = 'spoken';
+    const words = document.createElement('span');
+    words.textContent = text;
+    const replay = document.createElement('button');
+    replay.className = 'replay-button';
+    replay.textContent = '🔊';
+    replay.setAttribute('aria-label', 'Hear it again');
+    replay.addEventListener('click', () => audio.speaker.say(text));
+    line.append(words, replay);
+    return line;
+  }
+
+  /** The Session has already said how the game ended (just before this event); the card shows those words. */
+  function showResult(): void {
+    el.status.textContent = '';
+    showCard(spokenMessage(lastSaid), (body) => {
       const again = document.createElement('button');
       again.className = 'big-button';
       again.textContent = 'Play again';
       again.addEventListener('click', () => {
         el.overlay.hidden = true;
         cg.destroy();
-        startGame(el, childColour);
+        startGame(el, audio, childColour);
       });
       body.append(again);
     });
   }
 
-  function showCard(title: string, fill: (body: HTMLElement) => void): void {
+  function showCard(title: string | HTMLElement, fill: (body: HTMLElement) => void): void {
     const box = document.createElement('div');
     box.className = 'card';
     const heading = document.createElement('h2');
-    heading.textContent = title;
+    heading.append(title);
     box.append(heading);
     fill(box);
     el.overlay.replaceChildren(box);
