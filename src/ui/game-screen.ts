@@ -1,9 +1,10 @@
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Key, Role } from 'chessground/types';
+import { resolveColour, type ColourChoice } from '../core/colour';
 import { createSession, type BoardChanged, type Colour, type SessionEvent } from '../core/session';
 import type { MoveChoice, PromotionPiece } from '../opponents/opponent';
-import { createSnail } from '../opponents/snail';
+import type { OpponentCharacter } from '../opponents/roster';
 import type { Sound } from './sound';
 import type { Speaker } from './speech';
 import { spokenMessage } from './spoken';
@@ -38,20 +39,30 @@ export interface Game {
   stop(): void;
 }
 
-/** Start a Snail game. "Play again" starts a fresh one in the same place. */
-export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 'white'): Game {
+/**
+ * Start a game against the chosen Opponent. The board faces the child's side. "Play again" starts a
+ * fresh one in the same place, with the same Opponent and colour choice (🎲 picks again).
+ */
+export function startGame(el: Elements, audio: GameAudio, character: OpponentCharacter, colour: ColourChoice): Game {
+  const fresh = () => playOne(el, audio, character, resolveColour(colour), playAgain);
   // Only called from a click, after `current` is set.
-  let current = playOne(el, audio, childColour, playAgain);
+  let current = fresh();
   function playAgain(): void {
     current.stop();
-    current = playOne(el, audio, childColour, playAgain);
+    current = fresh();
   }
   return { stop: () => current.stop() };
 }
 
 /** Thin UI: renders Session events and forwards the child's moves. No chess rules here. */
-function playOne(el: Elements, audio: GameAudio, childColour: Colour, playAgain: () => void): Game {
-  const opponent = createSnail();
+function playOne(
+  el: Elements,
+  audio: GameAudio,
+  character: OpponentCharacter,
+  childColour: Colour,
+  playAgain: () => void,
+): Game {
+  const opponent = character.create();
   const session = createSession({ kind: 'opponent-game', opponent, childColour });
   let busy = false;
   let lastBoardEvent: BoardChanged | undefined;

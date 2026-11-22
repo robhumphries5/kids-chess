@@ -111,3 +111,39 @@ export const MINI_GAMES_SVG = svg(
     `<path d="M50 32 Q30 20 18 36 Q6 56 22 78 Q34 94 50 86 Q66 94 78 78 Q94 56 82 36 Q70 20 50 32 Z" fill="#e3423b"/>` +
     `<ellipse cx="32" cy="48" rx="6" ry="10" fill="#fff" opacity="0.45"/>`,
 );
+
+/** Greedy Pig: a round pink pig with a big snout and a happy grin. */
+export const PIG_SVG = svg(
+  `<path d="M20 30 L24 8 L42 22 Z" fill="#f08aa4"/><path d="M80 30 L76 8 L58 22 Z" fill="#f08aa4"/>` +
+    `<circle cx="50" cy="54" r="38" fill="#f7a8bc"/>` +
+    eyes(42, 15) +
+    `<ellipse cx="50" cy="62" rx="16" ry="11" fill="#f08aa4"/>` +
+    `<ellipse cx="44" cy="62" rx="3.5" ry="5" fill="#b8566f"/><ellipse cx="56" cy="62" rx="3.5" ry="5" fill="#b8566f"/>` +
+    `<path d="M36 78 Q50 88 64 78" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+);
+
+/** Each Opponent's picture on the Opponent picker, by Opponent id. */
+export const OPPONENT_PICTURES: Readonly<Record<string, string>> = {
+  snail: PLAY_SVG,
+  pig: PIG_SVG,
+};
+
+const pawn = (fill: string, stroke: string) =>
+  svg(
+    `<circle cx="50" cy="28" r="13" fill="${fill}" stroke="${stroke}" stroke-width="4"/>` +
+      `<path d="M38 44 H62 L58 50 Q60 66 68 76 H32 Q40 66 42 50 Z" fill="${fill}" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>` +
+      `<rect x="24" y="76" width="52" height="12" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="4"/>`,
+  );
+
+/** Play as white: a white pawn. */
+export const WHITE_PAWN_SVG = pawn('#ffffff', '#2b2b2b');
+
+/** Play as black: a black pawn. */
+export const BLACK_PAWN_SVG = pawn('#2b2b2b', '#2b2b2b');
+
+/** 🎲: let the app pick the colour. */
+export const DICE_SVG = svg(
+  `<rect x="16" y="16" width="68" height="68" rx="14" fill="#fff" stroke="#e3423b" stroke-width="6"/>` +
+    `<circle cx="34" cy="34" r="6" fill="#e3423b"/><circle cx="50" cy="50" r="6" fill="#e3423b"/><circle cx="66" cy="66" r="6" fill="#e3423b"/>` +
+    `<circle cx="66" cy="34" r="6" fill="#e3423b"/><circle cx="34" cy="66" r="6" fill="#e3423b"/>`,
+);
