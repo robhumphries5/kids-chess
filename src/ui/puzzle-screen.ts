@@ -14,6 +14,10 @@ import { spokenMessage } from './spoken';
 
 /** Pause after a solve, so the cheer is heard and the capture seen before the next puzzle. */
 const NEXT_PUZZLE_DELAY_MS = 1800;
+/** Pause after "Watch this!" so the child sees the arrow before the app plays the move. */
+const WATCH_THIS_DELAY_MS = 1400;
+/** Let chessground finish drawing (and the piece slide back) before wobbling it. */
+const WOBBLE_DELAY_MS = 300;
 
 interface Elements {
   board: HTMLElement;
@@ -65,7 +69,17 @@ export function startPuzzles(el: Elements, audio: GameAudio, store: ProfileStore
           firstPuzzle = false;
           colour = event.childColour;
           el.message.replaceChildren();
-          cg.set({ orientation: colour });
+          cg.set({ orientation: colour, drawable: { autoShapes: [] } });
+          break;
+        case 'hint-step':
+          if (event.step === 1) {
+            cg.set({ drawable: { autoShapes: [{ orig: event.piece as Key, brush: 'green' }] } });
+            const square = event.piece;
+            setTimeout(() => wobble(square), WOBBLE_DELAY_MS);
+          } else {
+            cg.set({ drawable: { autoShapes: [{ orig: event.move.from as Key, dest: event.move.to as Key, brush: 'green' }] } });
+            if (event.step === 3) await wait(WATCH_THIS_DELAY_MS);
+          }
           break;
         case 'board-changed':
           lastBoardEvent = event;
@@ -89,6 +103,7 @@ export function startPuzzles(el: Elements, audio: GameAudio, store: ProfileStore
           break;
         case 'points-awarded':
           showStarJar(el.starJar, event.total);
+          if (event.amount === 0) break;
           el.starJar.classList.remove('just-filled');
           void el.starJar.offsetWidth; // Restarts the little bounce.
           el.starJar.classList.add('just-filled');
@@ -101,6 +116,18 @@ export function startPuzzles(el: Elements, audio: GameAudio, store: ProfileStore
         case 'puzzle-solved':
           break;
       }
+    }
+  }
+
+  /** Gives the piece on `square` a little wobble, as a clue to move it. */
+  function wobble(square: string): void {
+    if (stopped) return;
+    for (const piece of el.board.querySelectorAll<HTMLElement>('piece')) {
+      if ((piece as HTMLElement & { cgKey?: string }).cgKey !== square || piece.classList.contains('ghost')) continue;
+      piece.classList.remove('wobble');
+      void piece.offsetWidth; // Restarts the wobble.
+      piece.classList.add('wobble');
+      piece.addEventListener('animationend', () => piece.classList.remove('wobble'), { once: true });
     }
   }
 
