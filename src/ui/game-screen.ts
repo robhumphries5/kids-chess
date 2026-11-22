@@ -6,6 +6,7 @@ import type { MoveChoice, PromotionPiece } from '../opponents/opponent';
 import { createSnail } from '../opponents/snail';
 import type { Sound } from './sound';
 import type { Speaker } from './speech';
+import { spokenMessage } from './spoken';
 
 /** The Promotion Picker's choices, in order. `role` is chessground's piece class, so the pictures match the board. */
 const PROMOTION_CHOICES: readonly { piece: PromotionPiece; name: string; role: Role }[] = [
@@ -31,13 +32,31 @@ export interface GameAudio {
   sound: Sound;
 }
 
+/** A game in progress. */
+export interface Game {
+  /** Leave the game: the board is cleared and nothing more is said or played. */
+  stop(): void;
+}
+
+/** Start a Snail game. "Play again" starts a fresh one in the same place. */
+export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 'white'): Game {
+  // Only called from a click, after `current` is set.
+  let current = playOne(el, audio, childColour, playAgain);
+  function playAgain(): void {
+    current.stop();
+    current = playOne(el, audio, childColour, playAgain);
+  }
+  return { stop: () => current.stop() };
+}
+
 /** Thin UI: renders Session events and forwards the child's moves. No chess rules here. */
-export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 'white'): void {
+function playOne(el: Elements, audio: GameAudio, childColour: Colour, playAgain: () => void): Game {
   const opponent = createSnail();
   const session = createSession({ kind: 'opponent-game', opponent, childColour });
   let busy = false;
   let lastBoardEvent: BoardChanged | undefined;
   let lastSaid = '';
+  let stopped = false;
   el.message.replaceChildren();
 
   const cg: Api = Chessground(el.board, {
@@ -66,6 +85,8 @@ export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 
 
   async function render(events: SessionEvent[]): Promise<void> {
     for (const event of events) {
+      // The child may leave mid-reply (the Opponent pauses before moving).
+      if (stopped) return;
       switch (event.type) {
         case 'board-changed':
           lastBoardEvent = event;
@@ -92,7 +113,7 @@ export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 
         case 'say':
           lastSaid = event.text;
           audio.speaker.say(event.text);
-          el.message.replaceChildren(spokenMessage(event.text));
+          el.message.replaceChildren(spokenMessage(event.text, audio.speaker));
           break;
         case 'game-over':
           showResult();
@@ -139,31 +160,14 @@ export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 
     });
   }
 
-  /** A message that was spoken, with a 🔊 button to hear it again. */
-  function spokenMessage(text: string): HTMLElement {
-    const line = document.createElement('span');
-    line.className = 'spoken';
-    const words = document.createElement('span');
-    words.textContent = text;
-    const replay = document.createElement('button');
-    replay.className = 'replay-button';
-    replay.textContent = '🔊';
-    replay.setAttribute('aria-label', 'Hear it again');
-    replay.addEventListener('click', () => audio.speaker.say(text));
-    line.append(words, replay);
-    return line;
-  }
-
   /** The Session has already said how the game ended (just before this event); the card shows those words. */
   function showResult(): void {
-    showCard(spokenMessage(lastSaid), (body) => {
+    showCard(spokenMessage(lastSaid, audio.speaker), (body) => {
       const again = document.createElement('button');
       again.className = 'big-button';
       again.textContent = 'Play again';
       again.addEventListener('click', () => {
-        el.overlay.hidden = true;
-        cg.destroy();
-        startGame(el, audio, childColour);
+        playAgain();
       });
       body.append(again);
     });
@@ -181,6 +185,16 @@ export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 
   }
 
   void session.start().then(render);
+
+  return {
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      el.overlay.hidden = true;
+      el.message.replaceChildren();
+      cg.destroy();
+    },
+  };
 }
 
 function wait(ms: number): Promise<void> {

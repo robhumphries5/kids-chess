@@ -2,7 +2,8 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.cburnett.css';
 import './board-theme.css';
 import './style.css';
-import { startGame } from './ui/game-screen';
+import { createProfileStore } from './core/profiles';
+import { startApp } from './ui/app';
 import { createSound } from './ui/sound';
 import { createSpeaker } from './ui/speech';
 
@@ -37,11 +38,21 @@ function readMuted(): boolean {
   }
 }
 
-startGame(
+const byId = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+startApp(
   {
-    board: document.getElementById('board')!,
-    message: document.getElementById('message')!,
-    overlay: document.getElementById('overlay')!,
+    menu: byId('menu'),
+    menuChoices: byId('menu-choices'),
+    menuMessage: byId('menu-message'),
+    game: byId('game'),
+    board: byId('board'),
+    message: byId('message'),
+    overlay: byId('overlay'),
+    go: byId<HTMLButtonElement>('go'),
+    corner: byId<HTMLButtonElement>('corner'),
+    profileBadge: byId('profile-badge'),
   },
+  createProfileStore(),
   { speaker: createSpeaker(), sound },
 );
