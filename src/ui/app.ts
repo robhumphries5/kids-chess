@@ -3,6 +3,8 @@ import { startGame, type Game, type GameAudio } from './game-screen';
 import { showGrownUpArea } from './grown-up-area';
 import { createHold } from './hold';
 import { createMenuChoice, type Choice } from './menu';
+import { startPuzzles } from './puzzle-screen';
+import { showStarJar } from './star-jar';
 import { AVATARS, avatarById, MINI_GAMES_SVG, NEW_PROFILE_SVG, PLAY_SVG, PUZZLES_SVG, type Avatar } from './pictures';
 import { voiceSwitched } from './speech';
 import { spokenMessage } from './spoken';
@@ -24,6 +26,8 @@ export interface AppElements {
   corner: HTMLButtonElement;
   /** The chosen Profile's avatar, top centre. */
   profileBadge: HTMLElement;
+  /** The chosen Profile's Points, as a jar of stars. Shown wherever the badge is. */
+  starJar: HTMLElement;
   grownUpArea: HTMLElement;
   /** Hold for 3 seconds to open the Grown-up Area. Only shown on the avatar picker. */
   grownUpButton: HTMLButtonElement;
@@ -125,7 +129,7 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
     };
     showMenu(
       [
-        { id: 'puzzles', name: 'Puzzles', picture: PUZZLES_SVG, onGo: comingSoon('Puzzles') },
+        { id: 'puzzles', name: 'Puzzles', picture: PUZZLES_SVG, onGo: () => puzzles(profile) },
         { id: 'play', name: 'Play', picture: PLAY_SVG, onGo: () => play(profile) },
         { id: 'mini-games', name: 'Mini-games', picture: MINI_GAMES_SVG, onGo: comingSoon('Mini-games') },
       ],
@@ -146,6 +150,27 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
       home(profile);
     };
     showCorner({ label: '🏠', name: 'Home', action: () => confirmHome(leave) });
+    showProfileBadge(profile);
+  }
+
+  function puzzles(profile: Profile): void {
+    el.menu.hidden = true;
+    el.go.hidden = true;
+    el.grownUpButton.hidden = true;
+    el.game.hidden = false;
+    game = startPuzzles(
+      { board: el.board, message: el.message, overlay: el.overlay, starJar: el.starJar },
+      audio,
+      store,
+      profile.id,
+    );
+    const leave = () => {
+      game?.stop();
+      game = undefined;
+      home(profile);
+    };
+    // Nothing is lost by leaving a puzzle, so Home goes straight there.
+    showCorner({ label: '🏠', name: 'Home', action: leave });
     showProfileBadge(profile);
   }
 
@@ -224,6 +249,8 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
     el.profileBadge.hidden = !avatar;
     el.profileBadge.replaceChildren(...(avatar ? [svgPicture(avatar.svg)] : []));
     if (avatar) el.profileBadge.setAttribute('aria-label', profile.name ?? avatar.name);
+    el.starJar.hidden = !profile;
+    if (profile) showStarJar(el.starJar, store.load(profile.id).points);
   }
 
   function unusedAvatars(): Avatar[] {

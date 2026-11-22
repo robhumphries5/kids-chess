@@ -165,6 +165,28 @@ html, body {
 }
 .profile-badge svg { width: 100%; height: 100%; display: block; }
 
+/* The Profile's Points as a jar of stars, top right beside the sound switch. */
+.star-jar {
+  position: fixed;
+  top: 0.4rem;
+  right: 4.6rem;
+  z-index: 5;
+  width: 3.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.star-jar svg { width: 100%; height: auto; display: block; }
+.star-jar-total { font-size: 0.8rem; font-weight: 700; opacity: 0.7; line-height: 1; }
+.star-jar.just-filled { animation: jar-bounce 600ms ease-out; }
+@keyframes jar-bounce {
+  30% { transform: scale(1.25) rotate(-6deg); }
+  60% { transform: scale(0.95) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .star-jar.just-filled { animation: none; }
+}
+
 .menu-screen, .game-screen {
   display: flex;
   flex-direction: column;
