@@ -49,6 +49,7 @@ startApp(
     board: byId('board'),
     message: byId('message'),
     overlay: byId('overlay'),
+    gameControls: byId('game-controls'),
     go: byId<HTMLButtonElement>('go'),
     corner: byId<HTMLButtonElement>('corner'),
     profileBadge: byId('profile-badge'),

@@ -68,6 +68,7 @@ describe('Puzzle Session', () => {
     ]);
     expect(events[0]).toMatchObject({ lastMove: ['a4', 'd4'], childToMove: false });
     expect(events[1]).toEqual({ type: 'sound', sound: 'win' });
+    expect(events[2]).toEqual({ type: 'puzzle-solved', points: 30 });
     expect(events[3]).toEqual({ type: 'points-awarded', amount: 30, total: 30 });
     expect(events[6]).toMatchObject({ fen: SECOND, childToMove: true });
     expect(events[7]).toEqual({ type: 'say', text: 'Take the free piece!' });
@@ -80,16 +81,83 @@ describe('Puzzle Session', () => {
     expect(types(await session.move({ from: 'a4', to: 'a7' }))).toContain('puzzle-solved');
   });
 
-  it('a legal move that misses the goal goes back to the puzzle, gently, with no Points', async () => {
+  it('a first wrong move goes back, says "Nearly! Try again!" and wobbles the right piece (Hint Step 1)', async () => {
     const { session, reloadedTotal } = setUp(freePiece(TWO_WAYS, { from: 'a4', to: 'd4' }));
     await session.start();
     const events = await session.move({ from: 'a4', to: 'b4' });
-    expect(types(events)).toEqual(['not-yet', 'board-changed', 'say']);
+    expect(types(events)).toEqual(['not-yet', 'board-changed', 'say', 'hint-step']);
     expect(events[1]).toMatchObject({ fen: TWO_WAYS, childToMove: true });
-    expect(events[2]).toEqual({ type: 'say', text: 'Try again!' });
+    expect(events[2]).toEqual({ type: 'say', text: 'Nearly! Try again!' });
+    expect(events[3]).toEqual({ type: 'hint-step', step: 1, piece: 'a4' });
     expect(reloadedTotal()).toBe(0);
-    // Still the same puzzle, and it can still be solved.
-    expect(types(await session.move({ from: 'a4', to: 'd4' }))).toContain('puzzle-solved');
+  });
+
+  it('solving after Hint Step 1 gives 20 Points', async () => {
+    const { session, reloadedTotal } = setUp(freePiece(TWO_WAYS, { from: 'a4', to: 'd4' }));
+    await session.start();
+    await session.move({ from: 'a4', to: 'b4' });
+    const events = await session.move({ from: 'a4', to: 'a7' });
+    expect(events).toContainEqual({ type: 'puzzle-solved', points: 20 });
+    expect(events).toContainEqual({ type: 'points-awarded', amount: 20, total: 20 });
+    expect(reloadedTotal()).toBe(20);
+  });
+
+  it('a second wrong move goes back and shows the answer with an arrow (Hint Step 2); solving then gives 10', async () => {
+    const { session, reloadedTotal } = setUp(freePiece(TWO_WAYS, { from: 'a4', to: 'd4' }));
+    await session.start();
+    await session.move({ from: 'a4', to: 'b4' });
+    const events = await session.move({ from: 'f1', to: 'e2' });
+    expect(types(events)).toEqual(['not-yet', 'board-changed', 'say', 'hint-step']);
+    expect(events[1]).toMatchObject({ fen: TWO_WAYS, childToMove: true });
+    expect(events[2]).toEqual({ type: 'say', text: 'Nearly! Follow the arrow!' });
+    expect(events[3]).toEqual({ type: 'hint-step', step: 2, move: { from: 'a4', to: 'd4' } });
+    expect(await session.move({ from: 'a4', to: 'd4' })).toContainEqual({ type: 'puzzle-solved', points: 10 });
+    expect(reloadedTotal()).toBe(10);
+  });
+
+  it('a third wrong move: the app plays the answer with "Watch this!", gives 0 Points and moves on cheerfully', async () => {
+    const { session, reloadedTotal } = setUp(freePiece(TWO_WAYS, { from: 'a4', to: 'd4' }), freePiece(SECOND, { from: 'c1', to: 'c3' }));
+    await session.start();
+    await session.move({ from: 'a4', to: 'b4' });
+    await session.move({ from: 'a4', to: 'b4' });
+    const events = await session.move({ from: 'f1', to: 'e2' });
+    expect(types(events)).toEqual([
+      'not-yet',
+      'board-changed',
+      'say',
+      'hint-step',
+      'board-changed',
+      'sound',
+      'puzzle-solved',
+      'points-awarded',
+      'say',
+      'puzzle-started',
+      'board-changed',
+      'say',
+    ]);
+    expect(events[1]).toMatchObject({ fen: TWO_WAYS, childToMove: true });
+    expect(events[2]).toEqual({ type: 'say', text: 'Watch this!' });
+    expect(events[3]).toEqual({ type: 'hint-step', step: 3, move: { from: 'a4', to: 'd4' } });
+    expect(events[4]).toMatchObject({ fen: '4k3/p7/8/8/3R4/8/8/4KB2 b - - 0 1', lastMove: ['a4', 'd4'], childToMove: false });
+    expect(events[5]).toEqual({ type: 'sound', sound: 'capture' });
+    expect(events[6]).toEqual({ type: 'puzzle-solved', points: 0 });
+    expect(events[7]).toEqual({ type: 'points-awarded', amount: 0, total: 0 });
+    expect(events[8]).toEqual({ type: 'say', text: "Now you know! Let's try another." });
+    expect(events[10]).toMatchObject({ fen: SECOND, childToMove: true });
+    expect(reloadedTotal()).toBe(0);
+    // The next puzzle starts fresh: no mistakes there earns the full 30.
+    expect(await session.move({ from: 'c1', to: 'c3' })).toContainEqual({ type: 'puzzle-solved', points: 30 });
+    expect(reloadedTotal()).toBe(30);
+  });
+
+  it('never says anything negative, whatever happens', async () => {
+    const { session } = setUp(freePiece(TWO_WAYS, { from: 'a4', to: 'd4' }));
+    const said: string[] = [];
+    const collect = (events: PuzzleSessionEvent[]) => events.forEach((e) => e.type === 'say' && said.push(e.text));
+    collect(await session.start());
+    for (let i = 0; i < 6; i++) collect(await session.move({ from: 'a4', to: 'b4' }));
+    expect(said.length).toBeGreaterThan(6);
+    for (const text of said) expect(text).not.toMatch(/wrong|fail|lost|lose|bad|no!|oops|sorry/i);
   });
 
   it('an illegal move is rejected and nothing changes', async () => {
@@ -112,7 +180,7 @@ describe('Puzzle Session', () => {
       expect(reloadedTotal()).toBeGreaterThanOrEqual(previous);
       previous = reloadedTotal();
     }
-    expect(reloadedTotal()).toBe(60);
+    expect(reloadedTotal()).toBe(50); // 20 (after one hint) + 30
   });
 
   it('a pawn reaching the end asks for the Promotion Picker, never auto-queens', async () => {

@@ -160,3 +160,13 @@ export const DICE_SVG = svg(
     `<circle cx="34" cy="34" r="6" fill="#e3423b"/><circle cx="50" cy="50" r="6" fill="#e3423b"/><circle cx="66" cy="66" r="6" fill="#e3423b"/>` +
     `<circle cx="66" cy="34" r="6" fill="#e3423b"/><circle cx="34" cy="66" r="6" fill="#e3423b"/>`,
 );
+
+/** Start a new game instead of carrying on: a fresh little board with a sparkle. */
+export const NEW_GAME_SVG = svg(
+  `<rect x="14" y="22" width="64" height="64" rx="6" fill="#f0d9b5" stroke="#8a5a32" stroke-width="5"/>` +
+    [0, 1, 2, 3]
+      .flatMap((row) => [0, 1, 2, 3].filter((col) => (row + col) % 2 === 1).map((col) => [row, col]))
+      .map(([row, col]) => `<rect x="${16 + col * 15}" y="${24 + row * 15}" width="15" height="15" fill="#b58863"/>`)
+      .join('') +
+    `<path d="M80 8 L84 18 L94 22 L84 26 L80 36 L76 26 L66 22 L76 18 Z" fill="#ffc83d" stroke="#e0a000" stroke-width="2" stroke-linejoin="round"/>`,
+);

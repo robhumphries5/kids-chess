@@ -1,6 +1,8 @@
 // Profiles: one per child, chosen by avatar. Stored on this device only, in localStorage under
 // versioned keys. Loading merges saved data over defaults and never crashes (word-bots pattern).
 
+import { savedGameKey } from './saved-game';
+
 /** The parts of localStorage the store uses, so tests can pass an in-memory stand-in. */
 export interface KeyValueStorage {
   getItem(key: string): string | null;
@@ -191,6 +193,7 @@ export function createProfileStore(
     remove(id) {
       write(LIST_KEY, list().filter((p) => p.id !== id));
       forget(dataKey(id));
+      forget(savedGameKey(id));
     },
     load,
     save,
