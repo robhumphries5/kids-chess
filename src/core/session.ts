@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js';
 import type { MoveChoice, Opponent } from '../opponents/opponent';
+import type { SavedGame, SavedGameStore } from './saved-game';
 
 export type Colour = 'white' | 'black';
 
@@ -9,6 +10,10 @@ export interface OpponentGameOptions {
   childColour: Colour;
   /** Starting position; defaults to the normal start. */
   fen?: string;
+  /** Moves already played from the starting position, in SAN: resumes a saved game. */
+  moves?: string[];
+  /** Where to save the game after every move, so it can be resumed. A finished game is cleared. */
+  saveTo?: { store: SavedGameStore; profileId: string };
 }
 
 export type SessionOptions = OpponentGameOptions;
@@ -92,6 +97,25 @@ export function createSession(options: SessionOptions): Session {
   /** What Undo took back, latest last: each entry is one turn (the child's move and any reply), in SAN. */
   const redoable: string[][] = [];
 
+  for (const san of options.moves ?? []) {
+    try {
+      chess.move(san);
+    } catch {
+      // Corrupt saved data: carry on from the last good position.
+      break;
+    }
+  }
+
+  /** Keep the game for later, or forget it once it is over. */
+  function save(): void {
+    if (!options.saveTo) return;
+    const { store, profileId } = options.saveTo;
+    if (chess.isGameOver()) return store.clear(profileId);
+    const game: SavedGame = { opponentId: options.opponent.id, childColour: options.childColour, moves: chess.history() };
+    if (options.fen) game.fen = options.fen;
+    store.save(profileId, game);
+  }
+
   /** Where in the game's moves the child's last move is, or -1 when the result stands or they haven't moved. */
   function undoFrom(): number {
     if (chess.isGameOver()) return -1;
@@ -133,7 +157,9 @@ export function createSession(options: SessionOptions): Session {
   }
 
   function play(move: MoveChoice) {
-    return chess.move(move);
+    const played = chess.move(move);
+    save();
+    return played;
   }
 
   /** The move that produced the current position, as [from, to]. */
@@ -217,12 +243,17 @@ export function createSession(options: SessionOptions): Session {
         const turn = chess.history().slice(from);
         for (const _ of turn) chess.undo();
         redoable.push(turn);
+        save();
       }
       return [boardChanged()];
     },
 
     async redo() {
-      for (const san of redoable.pop() ?? []) chess.move(san);
+      const turn = redoable.pop();
+      if (turn) {
+        for (const san of turn) chess.move(san);
+        save();
+      }
       return [boardChanged()];
     },
   };
