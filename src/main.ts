@@ -40,7 +40,6 @@ function readMuted(): boolean {
 startGame(
   {
     board: document.getElementById('board')!,
-    status: document.getElementById('status')!,
     message: document.getElementById('message')!,
     overlay: document.getElementById('overlay')!,
   },

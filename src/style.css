@@ -14,6 +14,8 @@ html, body {
   color: var(--ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   touch-action: manipulation;
+  /* No blue flash on mobile when the board (or anything) is tapped. */
+  -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -39,7 +41,6 @@ html, body {
 
 #board { width: 100%; height: 100%; }
 
-.status { font-size: 1.6rem; margin: 0; min-height: 2rem; text-align: center; }
 
 .overlay {
   position: fixed;

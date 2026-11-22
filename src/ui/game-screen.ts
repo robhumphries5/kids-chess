@@ -20,7 +20,6 @@ const OPPONENT_DELAY_MS = 600;
 
 interface Elements {
   board: HTMLElement;
-  status: HTMLElement;
   /** Where the latest spoken message is shown, with its 🔊 replay. */
   message: HTMLElement;
   overlay: HTMLElement;
@@ -80,7 +79,6 @@ export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 
               dests: new Map(Object.entries(event.dests)) as Map<Key, Key[]>,
             },
           });
-          el.status.textContent = event.childToMove ? 'Your turn!' : `${opponent.name} is thinking…`;
           break;
         case 'opponent-moved':
           await wait(OPPONENT_DELAY_MS);
@@ -158,7 +156,6 @@ export function startGame(el: Elements, audio: GameAudio, childColour: Colour = 
 
   /** The Session has already said how the game ended (just before this event); the card shows those words. */
   function showResult(): void {
-    el.status.textContent = '';
     showCard(spokenMessage(lastSaid), (body) => {
       const again = document.createElement('button');
       again.className = 'big-button';

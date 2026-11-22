@@ -36,16 +36,54 @@ cg-board square.check {
   background: radial-gradient(ellipse at center, rgb(255 0 0) 0%, rgb(231 0 0) 25%, rgb(169 0 0 / 0) 89%);
 }
 
-/* Coordinates: cream on green squares, green on cream squares. */
+/*
+ * Coordinates sit inside the edge squares: rank numbers top-left of the left-hand column, file letters
+ * bottom-right of the bottom row, slightly inset. Chessground's own placement uses fixed pixel offsets
+ * that drift off the squares on a large board, so it is replaced here with one slot per square.
+ */
+.cg-wrap coords {
+  font-size: calc(min(92vw, 80vh) / 34);
+  font-weight: 700;
+  opacity: 1;
+}
+.cg-wrap coords coord {
+  flex: 1 1 0;
+  display: flex;
+  padding: 0.3em 0.35em;
+  transform: none;
+}
+.cg-wrap coords.ranks {
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 100%;
+}
+.cg-wrap coords.ranks coord {
+  transform: none; /* chessground nudges rank numbers down */
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+.cg-wrap coords.files {
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 12.5%;
+}
+.cg-wrap coords.files coord {
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+/* Cream on green squares, green on cream squares. (a1 is green; from Black's side the corner is h8, also green.) */
 .orientation-white .ranks :nth-child(odd),
-.orientation-white .files :nth-child(even),
+.orientation-white .files :nth-child(odd),
 .orientation-black .ranks :nth-child(even),
-.orientation-black .files :nth-child(odd) {
+.orientation-black .files :nth-child(even) {
   color: #eeeed2;
 }
 .orientation-white .ranks :nth-child(even),
-.orientation-white .files :nth-child(odd),
+.orientation-white .files :nth-child(even),
 .orientation-black .ranks :nth-child(odd),
-.orientation-black .files :nth-child(even) {
+.orientation-black .files :nth-child(odd) {
   color: #769656;
 }
