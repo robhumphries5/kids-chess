@@ -1,9 +1,23 @@
+import type { ColourChoice } from '../core/colour';
 import type { Profile, ProfileStore } from '../core/profiles';
+import { OPPONENTS, type OpponentCharacter } from '../opponents/roster';
 import { startGame, type Game, type GameAudio } from './game-screen';
 import { showGrownUpArea } from './grown-up-area';
 import { createHold } from './hold';
 import { createMenuChoice, type Choice } from './menu';
-import { AVATARS, avatarById, MINI_GAMES_SVG, NEW_PROFILE_SVG, PLAY_SVG, PUZZLES_SVG, type Avatar } from './pictures';
+import {
+  AVATARS,
+  avatarById,
+  BLACK_PAWN_SVG,
+  DICE_SVG,
+  MINI_GAMES_SVG,
+  NEW_PROFILE_SVG,
+  OPPONENT_PICTURES,
+  PLAY_SVG,
+  PUZZLES_SVG,
+  WHITE_PAWN_SVG,
+  type Avatar,
+} from './pictures';
 import { voiceSwitched } from './speech';
 import { spokenMessage } from './spoken';
 
@@ -126,7 +140,7 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
     showMenu(
       [
         { id: 'puzzles', name: 'Puzzles', picture: PUZZLES_SVG, onGo: comingSoon('Puzzles') },
-        { id: 'play', name: 'Play', picture: PLAY_SVG, onGo: () => play(profile) },
+        { id: 'play', name: 'Play', picture: PLAY_SVG, onGo: () => opponentPicker(profile) },
         { id: 'mini-games', name: 'Mini-games', picture: MINI_GAMES_SVG, onGo: comingSoon('Mini-games') },
       ],
       { label: '↩', name: 'Change player', action: avatarPicker },
@@ -134,12 +148,37 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
     );
   }
 
-  function play(profile: Profile): void {
+  /** Who to play: every Opponent's picture. */
+  function opponentPicker(profile: Profile): void {
+    const items = OPPONENTS.map((o) => ({
+      id: o.id,
+      name: o.name,
+      picture: OPPONENT_PICTURES[o.id] ?? PLAY_SVG,
+      onGo: () => colourPicker(profile, o),
+    }));
+    showMenu(items, { label: '↩', name: 'Back', action: () => home(profile) }, profile);
+  }
+
+  /** Which side to play: white, black or 🎲. */
+  function colourPicker(profile: Profile, opponent: OpponentCharacter): void {
+    const choose = (colour: ColourChoice) => () => play(profile, opponent, colour);
+    showMenu(
+      [
+        { id: 'white', name: 'White', picture: WHITE_PAWN_SVG, onGo: choose('white') },
+        { id: 'black', name: 'Black', picture: BLACK_PAWN_SVG, onGo: choose('black') },
+        { id: 'random', name: 'Roll the dice', picture: DICE_SVG, onGo: choose('random') },
+      ],
+      { label: '↩', name: 'Back', action: () => opponentPicker(profile) },
+      profile,
+    );
+  }
+
+  function play(profile: Profile, opponent: OpponentCharacter, colour: ColourChoice): void {
     el.menu.hidden = true;
     el.go.hidden = true;
     el.grownUpButton.hidden = true;
     el.game.hidden = false;
-    game = startGame({ board: el.board, message: el.message, overlay: el.overlay }, audio);
+    game = startGame({ board: el.board, message: el.message, overlay: el.overlay }, audio, opponent, colour);
     const leave = () => {
       game?.stop();
       game = undefined;
