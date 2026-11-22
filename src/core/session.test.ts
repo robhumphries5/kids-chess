@@ -166,6 +166,61 @@ describe('Opponent game Session', () => {
       ]);
     });
 
+    it('asking for a piece leaves the board as it was, and the child can then choose', async () => {
+      // A spare pawn each way keeps the game going after a knight appears.
+      const fen = '7k/1P6/8/8/8/8/P7/K7 w - - 0 1';
+      const session = createSession({ kind: 'opponent-game', opponent: scripted('h8h7'), childColour: 'white', fen });
+      await session.start();
+      await session.move({ from: 'b7', to: 'b8' });
+      // A second ask still asks: the first one played nothing.
+      expect(await session.move({ from: 'b7', to: 'b8' })).toEqual([
+        { type: 'promotion-needed', from: 'b7', to: 'b8' },
+      ]);
+      const events = await session.move({ from: 'b7', to: 'b8', promotion: 'n' });
+      expect(events.map((e) => e.type)).toEqual(['board-changed', 'opponent-moved', 'board-changed']);
+      expect(events[0]).toMatchObject({ fen: '1N5k/8/8/8/8/8/P7/K7 b - - 0 1', lastMove: ['b7', 'b8'] });
+    });
+
+    it('a capture that promotes also asks for a piece', async () => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('h8h7'),
+        childColour: 'white',
+        fen: 'r6k/1P6/8/8/8/8/8/K7 w - - 0 1',
+      });
+      await session.start();
+      expect(await session.move({ from: 'b7', to: 'a8' })).toEqual([
+        { type: 'promotion-needed', from: 'b7', to: 'a8' },
+      ]);
+      const events = await session.move({ from: 'b7', to: 'a8', promotion: 'r' });
+      expect(events[0]).toMatchObject({ fen: 'R6k/8/8/8/8/8/8/K7 b - - 0 1' });
+    });
+
+    it.each(['q', 'r', 'b', 'n'] as const)('a black pawn can become %s', async (piece) => {
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('a1a2'),
+        childColour: 'black',
+        fen: '7k/7p/8/8/8/8/6p1/K7 b - - 0 1',
+      });
+      await session.start();
+      expect(await session.move({ from: 'g2', to: 'g1' })).toEqual([
+        { type: 'promotion-needed', from: 'g2', to: 'g1' },
+      ]);
+      const events = await session.move({ from: 'g2', to: 'g1', promotion: piece });
+      expect(events[0]).toMatchObject({ type: 'board-changed', fen: `7k/7p/8/8/8/8/8/K5${piece}1 w - - 0 2` });
+    });
+
+    it('a piece choice on a move that is not a promotion is rejected', async () => {
+      const session = createSession({ kind: 'opponent-game', opponent: scripted(), childColour: 'white' });
+      await session.start();
+      expect((await session.move({ from: 'e2', to: 'e4', promotion: 'q' }))[0]).toEqual({
+        type: 'move-rejected',
+        from: 'e2',
+        to: 'e4',
+      });
+    });
+
     it.each(['q', 'r', 'b', 'n'] as const)('promoting to %s is accepted', async (piece) => {
       const session = createSession({ kind: 'opponent-game', opponent: scripted('h8h7'), childColour: 'white', fen: PROMO });
       await session.start();

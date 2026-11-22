@@ -1,9 +1,17 @@
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
-import type { Key } from 'chessground/types';
-import { createSession, type Colour, type GameOver, type SessionEvent } from '../core/session';
+import type { Key, Role } from 'chessground/types';
+import { createSession, type BoardChanged, type Colour, type GameOver, type SessionEvent } from '../core/session';
 import type { MoveChoice, PromotionPiece } from '../opponents/opponent';
 import { createSnail } from '../opponents/snail';
+
+/** The Promotion Picker's choices, in order. `role` is chessground's piece class, so the pictures match the board. */
+const PROMOTION_CHOICES: readonly { piece: PromotionPiece; name: string; role: Role }[] = [
+  { piece: 'q', name: 'Queen', role: 'queen' },
+  { piece: 'r', name: 'Rook', role: 'rook' },
+  { piece: 'b', name: 'Bishop', role: 'bishop' },
+  { piece: 'n', name: 'Knight', role: 'knight' },
+];
 
 /** Pause before showing the Opponent's reply, so the child sees their own move land. */
 const OPPONENT_DELAY_MS = 600;
@@ -19,6 +27,7 @@ export function startGame(el: Elements, childColour: Colour = 'white'): void {
   const opponent = createSnail();
   const session = createSession({ kind: 'opponent-game', opponent, childColour });
   let busy = false;
+  let lastBoardEvent: BoardChanged | undefined;
 
   const cg: Api = Chessground(el.board, {
     orientation: childColour,
@@ -46,6 +55,7 @@ export function startGame(el: Elements, childColour: Colour = 'white'): void {
     for (const event of events) {
       switch (event.type) {
         case 'board-changed':
+          lastBoardEvent = event;
           cg.set({
             fen: event.fen,
             turnColor: event.turn,
@@ -73,20 +83,23 @@ export function startGame(el: Elements, childColour: Colour = 'white'): void {
     }
   }
 
-  // A plain stand-in: the full Promotion Picker with big pictures is its own ticket (#3).
+  /**
+   * The Promotion Picker: big pictures of the four pieces in the child's colour. Tapping one completes
+   * the move. Shown on every promotion; nothing is ever chosen for the child, and no choice is special.
+   */
   function showPromotionPicker(from: string, to: string): void {
-    const symbols: Record<PromotionPiece, string> =
-      childColour === 'white'
-        ? { q: '♕', r: '♖', b: '♗', n: '♘' }
-        : { q: '♛', r: '♜', b: '♝', n: '♞' };
-    const names: Record<PromotionPiece, string> = { q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight' };
     showCard('What should your pawn become?', (body) => {
       const choices = document.createElement('div');
-      choices.className = 'promotion-choices';
-      for (const piece of ['q', 'r', 'b', 'n'] as const) {
+      choices.className = 'promotion-choices cg-wrap';
+      for (const { piece, name, role } of PROMOTION_CHOICES) {
         const button = document.createElement('button');
-        button.textContent = symbols[piece];
-        button.setAttribute('aria-label', names[piece]);
+        button.className = 'promotion-choice';
+        button.setAttribute('aria-label', name);
+        const picture = document.createElement('piece');
+        picture.className = `${role} ${childColour}`;
+        const label = document.createElement('span');
+        label.textContent = name;
+        button.append(picture, label);
         button.addEventListener('click', () => {
           el.overlay.hidden = true;
           // Runs after the current sendMove has released `busy`.
@@ -94,7 +107,15 @@ export function startGame(el: Elements, childColour: Colour = 'white'): void {
         });
         choices.append(button);
       }
-      body.append(choices);
+      const back = document.createElement('button');
+      back.className = 'small-button';
+      back.textContent = '↩ Back';
+      back.addEventListener('click', () => {
+        el.overlay.hidden = true;
+        // The pawn was only dragged on screen; put the board back as the Session last showed it.
+        if (lastBoardEvent) void render([lastBoardEvent]);
+      });
+      body.append(choices, back);
     });
   }
 

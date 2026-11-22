@@ -55,7 +55,7 @@ html, body {
 .card {
   background: var(--card);
   border-radius: 1.5rem;
-  padding: 2rem 2.5rem;
+  padding: 2rem clamp(1rem, 4vw, 2.5rem);
   text-align: center;
   box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 0.25);
   max-width: calc(100vw - 2rem);
@@ -73,15 +73,40 @@ html, body {
   cursor: pointer;
 }
 
-.promotion-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
-.promotion-choices button {
-  width: 6rem;
-  height: 6rem;
-  font-size: 4.5rem;
-  line-height: 1;
+/* Also a .cg-wrap (for the piece pictures): the doubled class beats chessground's display: block. */
+.promotion-choices.cg-wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin-bottom: 1.5rem; }
+.promotion-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: min(8.5rem, 36vw);
+  padding: 0.5rem 0.5rem 0.7rem;
+  font: inherit;
+  font-size: 1.3rem;
   border: 3px solid var(--accent);
   border-radius: 1rem;
   background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+.promotion-choice:active { transform: scale(0.95); }
+/* Reuse chessground's piece pictures, but as a normal in-flow image rather than a board square. */
+.promotion-choices.cg-wrap piece {
+  position: static;
+  display: block;
+  width: min(7rem, 28vw);
+  height: min(7rem, 28vw);
+  will-change: auto;
+}
+
+.small-button {
+  font: inherit;
+  font-size: 1.2rem;
+  padding: 0.5rem 1.5rem;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
 }
