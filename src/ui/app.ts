@@ -1,5 +1,6 @@
 import type { ColourChoice } from '../core/colour';
 import type { Profile, ProfileStore } from '../core/profiles';
+import { createStars } from '../core/stars';
 import { createSavedGameStore, type SavedGame, type SavedGameStore } from '../core/saved-game';
 import { OPPONENTS, opponentById, type OpponentCharacter } from '../opponents/roster';
 import { startGame, type Game, type GameAudio } from './game-screen';
@@ -54,6 +55,8 @@ export interface AppElements {
 /** A picture on a menu screen and what Go does once it is selected. */
 interface MenuItem extends Choice {
   picture: string;
+  /** Shows a star on the picture: an Opponent this Profile has beaten. */
+  starred?: boolean;
   onGo: () => void;
 }
 
@@ -184,12 +187,14 @@ export function startApp(
     );
   }
 
-  /** Who to play: every Opponent's picture. */
+  /** Who to play: every Opponent's picture, with a star on each one this Profile has beaten. */
   function opponentPicker(profile: Profile): void {
+    const stars = createStars(store, profile.id);
     const items = OPPONENTS.map((o) => ({
       id: o.id,
       name: o.name,
       picture: OPPONENT_PICTURES[o.id] ?? PLAY_SVG,
+      starred: stars.has(o.id),
       onGo: () => colourPicker(profile, o),
     }));
     showMenu(items, { label: '↩', name: 'Back', action: () => home(profile) }, profile);
@@ -215,11 +220,16 @@ export function startApp(
     el.grownUpButton.hidden = true;
     el.game.hidden = false;
     game = startGame(
-      { board: el.board, message: el.message, overlay: el.overlay, controls: el.gameControls },
+      { board: el.board, message: el.message, overlay: el.overlay, controls: el.gameControls, go: el.go, starJar: el.starJar },
       audio,
       opponent,
       colour,
-      { store: savedGames, profileId: profile.id, resume },
+      { store: savedGames, profileId: profile.id, profiles: store, resume },
+      () => {
+        game?.stop();
+        game = undefined;
+        opponentPicker(profile);
+      },
     );
     const leave = () => {
       game?.stop();
@@ -260,6 +270,9 @@ export function startApp(
   function confirmHome(leave: () => void): void {
     const before = [...el.overlay.childNodes];
     const wasHidden = el.overlay.hidden;
+    // The result card's Go Button would otherwise sit over this question.
+    const goWasHidden = el.go.hidden;
+    el.go.hidden = true;
     const question = 'Go home?';
     audio.speaker.say(question);
 
@@ -276,6 +289,7 @@ export function startApp(
     const no = confirmButton('♟️', 'Keep playing', () => {
       el.overlay.replaceChildren(...before);
       el.overlay.hidden = wasHidden;
+      el.go.hidden = goWasHidden;
     });
     choices.append(no, yes);
     card.append(heading, choices);
@@ -301,6 +315,12 @@ export function startApp(
       button.setAttribute('aria-label', item.name);
       button.setAttribute('aria-pressed', 'false');
       button.append(svgPicture(item.picture));
+      if (item.starred) {
+        const star = document.createElement('span');
+        star.className = 'choice-star';
+        star.textContent = '⭐';
+        button.append(star);
+      }
       button.addEventListener('click', () => {
         el.menuMessage.replaceChildren();
         menu.tap(item.id);

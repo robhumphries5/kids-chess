@@ -21,14 +21,19 @@ export interface OpponentCharacter {
   id: string;
   /** Spoken when tapped on the Opponent picker. */
   name: string;
+  /**
+   * Its fixed place on the ladder, 1 (Sleepy Snail) to 6 (Dragon), whether or not the Opponents in
+   * between exist yet. Sets the Points for beating it, so adding an Opponent never changes another's.
+   */
+  strength: number;
   create(tools?: OpponentTools): Opponent;
 }
 
 /** Every Opponent on the picker, weakest first. New Opponents are added here. */
 export const OPPONENTS: readonly OpponentCharacter[] = [
-  { id: 'snail', name: 'Sleepy Snail', create: ({ random } = {}) => createSnail(random) },
-  { id: 'pig', name: 'Greedy Pig', create: ({ random } = {}) => createPig(random) },
-  { id: 'dragon', name: 'Dragon', create: ({ random, analyser } = {}) => createDragon(analyser ?? sharedStockfish(), random) },
+  { id: 'snail', name: 'Sleepy Snail', strength: 1, create: ({ random } = {}) => createSnail(random) },
+  { id: 'pig', name: 'Greedy Pig', strength: 2, create: ({ random } = {}) => createPig(random) },
+  { id: 'dragon', name: 'Dragon', strength: 6, create: ({ random, analyser } = {}) => createDragon(analyser ?? sharedStockfish(), random) },
 ];
 
 export function opponentById(id: string): OpponentCharacter | undefined {

@@ -13,6 +13,14 @@ describe('Opponent roster', () => {
     expect(OPPONENTS.map((o) => o.name)).toEqual(['Sleepy Snail', 'Greedy Pig', 'Dragon']);
   });
 
+  it('each has a fixed place on the six-step ladder: Snail weakest, Dragon strongest', () => {
+    expect(OPPONENTS.map((o) => [o.id, o.strength])).toEqual([
+      ['snail', 1],
+      ['pig', 2],
+      ['dragon', 6],
+    ]);
+  });
+
   it('each character makes an Opponent with its own id and name', () => {
     for (const character of OPPONENTS) {
       const opponent = character.create(tools());

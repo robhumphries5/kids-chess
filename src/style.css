@@ -459,3 +459,60 @@ html, body {
   .go-button { left: auto; right: 1rem; bottom: 1rem; transform: none; width: 5.5rem; height: 5.5rem; font-size: 1.4rem; }
   .go-button:active { transform: scale(0.93); }
 }
+
+/* A star on each Opponent this Profile has beaten (Opponent picker). */
+.menu-choice { position: relative; }
+.choice-star {
+  position: absolute;
+  top: -0.6rem;
+  right: -0.6rem;
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  line-height: 1;
+  filter: drop-shadow(0 0.15rem 0.2rem rgb(0 0 0 / 0.3));
+  pointer-events: none;
+}
+
+/* The end-of-game card: what happened, what was earned, then Rematch / Pick someone else with Go. */
+.overlay.with-go { padding-bottom: 8.5rem; }
+.go-button.over-card { z-index: 11; }
+.result-card h2 { margin-bottom: 0.8rem; }
+.result-scene { position: relative; display: flex; justify-content: center; overflow: hidden; }
+.result-picture { width: clamp(5rem, 18vh, 8rem); height: clamp(5rem, 18vh, 8rem); }
+.result-prize { font-size: 1.6rem; font-weight: 800; margin: 0.5rem 0 1rem; }
+.result-choices { display: flex; justify-content: center; gap: 1rem; }
+.result-choice { width: clamp(5.5rem, 18vh, 8rem); }
+
+/* Losing: the Opponent does a happy dance. */
+.happy-dance { animation: happy-dance 900ms ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes happy-dance {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  25% { transform: rotate(-12deg) translateY(-8%); }
+  50% { transform: rotate(0) translateY(0); }
+  75% { transform: rotate(12deg) translateY(-8%); }
+}
+/* Winning: the Opponent looks dizzy while confetti falls. */
+.beaten { animation: dizzy 1.6s ease-in-out infinite; }
+@keyframes dizzy { 50% { transform: rotate(8deg) scale(0.95); } }
+.friendly { animation: jar-bounce 900ms ease-out; }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+.confetti span {
+  position: absolute;
+  top: -10%;
+  width: 0.6rem;
+  height: 0.9rem;
+  border-radius: 0.15rem;
+  animation: confetti-fall 1.8s ease-in infinite;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(11rem) rotate(540deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .happy-dance, .beaten, .friendly, .confetti span { animation: none; }
+  .confetti { display: none; }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .overlay.with-go { padding-bottom: 0; padding-right: 7rem; }
+  .card.result-card { padding: 1rem 1.5rem; }
+  .result-card h2 { font-size: 1.6rem; margin-bottom: 0.4rem; }
+  .result-prize { font-size: 1.3rem; margin: 0.3rem 0 0.5rem; }
+}
