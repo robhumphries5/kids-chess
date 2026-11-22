@@ -52,6 +52,7 @@ startApp(
     go: byId<HTMLButtonElement>('go'),
     corner: byId<HTMLButtonElement>('corner'),
     profileBadge: byId('profile-badge'),
+    starJar: byId('star-jar'),
     grownUpArea: byId('grown-up'),
     grownUpButton: byId<HTMLButtonElement>('grown-up-button'),
   },
