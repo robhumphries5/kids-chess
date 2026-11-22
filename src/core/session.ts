@@ -26,6 +26,10 @@ export interface BoardChanged {
   childToMove: boolean;
   /** Legal destinations for the child's pieces (empty when it isn't their turn). */
   dests: Record<string, string[]>;
+  /** Opponent games: true when Undo would take something back. */
+  canUndo?: boolean;
+  /** Opponent games: true when Redo would replay something that was undone. */
+  canRedo?: boolean;
 }
 
 export interface OpponentMoved {
@@ -76,12 +80,26 @@ export type SessionEvent = BoardChanged | OpponentMoved | MoveRejected | Promoti
 export interface Session {
   start(): Promise<SessionEvent[]>;
   move(move: MoveChoice): Promise<SessionEvent[]>;
+  /** Take back the child's last move, and the Opponent's reply if it has been played. No confirmation. */
+  undo(): Promise<SessionEvent[]>;
+  /** Step forward again over what Undo took back, one turn at a time. A new move by the child clears it. */
+  redo(): Promise<SessionEvent[]>;
 }
 
 export function createSession(options: SessionOptions): Session {
   const chess = new Chess(options.fen);
   const childTurn = options.childColour === 'white' ? 'w' : 'b';
-  let lastMove: [string, string] | undefined;
+  /** What Undo took back, latest last: each entry is one turn (the child's move and any reply), in SAN. */
+  const redoable: string[][] = [];
+
+  /** Where in the game's moves the child's last move is, or -1 when the result stands or they haven't moved. */
+  function undoFrom(): number {
+    if (chess.isGameOver()) return -1;
+    const history = chess.history({ verbose: true });
+    let i = history.length - 1;
+    while (i >= 0 && history[i].color !== childTurn) i--;
+    return i;
+  }
 
   function childToMove(): boolean {
     return chess.turn() === childTurn && !chess.isGameOver();
@@ -105,17 +123,23 @@ export function createSession(options: SessionOptions): Session {
       type: 'board-changed',
       fen: chess.fen(),
       turn: chess.turn() === 'w' ? 'white' : 'black',
-      lastMove,
+      lastMove: lastMove(),
       check: chess.inCheck(),
       childToMove: childToMove(),
       dests,
+      canUndo: undoFrom() >= 0,
+      canRedo: redoable.length > 0,
     };
   }
 
   function play(move: MoveChoice) {
-    const played = chess.move(move);
-    lastMove = [played.from, played.to];
-    return played;
+    return chess.move(move);
+  }
+
+  /** The move that produced the current position, as [from, to]. */
+  function lastMove(): [string, string] | undefined {
+    const last = chess.history({ verbose: true }).at(-1);
+    return last && [last.from, last.to];
   }
 
   /** Everything that follows a move landing: the new board, what to say, and the end of the game if it has ended. */
@@ -179,10 +203,27 @@ export function createSession(options: SessionOptions): Session {
       if (!candidates.some((m) => m.promotion === move.promotion)) {
         return [{ type: 'move-rejected', from: move.from, to: move.to }, boardChanged()];
       }
+      // A different move: what was undone can no longer be replayed.
+      redoable.length = 0;
       const played = play(move);
       const afterChild = afterMove(Boolean(played.captured));
       if (chess.isGameOver()) return afterChild;
       return [...afterChild, ...(await opponentTurn())];
+    },
+
+    async undo() {
+      const from = undoFrom();
+      if (from >= 0) {
+        const turn = chess.history().slice(from);
+        for (const _ of turn) chess.undo();
+        redoable.push(turn);
+      }
+      return [boardChanged()];
+    },
+
+    async redo() {
+      for (const san of redoable.pop() ?? []) chess.move(san);
+      return [boardChanged()];
     },
   };
 }
