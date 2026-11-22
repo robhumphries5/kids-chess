@@ -1,6 +1,9 @@
 import { Chess } from 'chess.js';
 import type { MoveChoice, Opponent } from '../opponents/opponent';
+import { pointsForResult } from './game-rewards';
+import type { PointsAwarded, PointsLedger } from './points';
 import type { SavedGame, SavedGameStore } from './saved-game';
+import type { StarEarned, Stars } from './stars';
 
 export type Colour = 'white' | 'black';
 
@@ -14,6 +17,16 @@ export interface OpponentGameOptions {
   moves?: string[];
   /** Where to save the game after every move, so it can be resumed. A finished game is cleared. */
   saveTo?: { store: SavedGameStore; profileId: string };
+  /** What the child earns when the game ends: Points (through the ledger) and a star for a win. */
+  rewards?: GameRewards;
+}
+
+/** Where a finished game's rewards go. */
+export interface GameRewards {
+  points: PointsLedger;
+  stars: Stars;
+  /** The Opponent's place on the ladder, 1 for the weakest: sets the Points for a win. */
+  strength: number;
 }
 
 export type SessionOptions = OpponentGameOptions;
@@ -80,7 +93,16 @@ export interface SoundCue {
   sound: 'move' | 'capture' | 'check' | 'win';
 }
 
-export type SessionEvent = BoardChanged | OpponentMoved | MoveRejected | PromotionNeeded | GameOver | Say | SoundCue;
+export type SessionEvent =
+  | BoardChanged
+  | OpponentMoved
+  | MoveRejected
+  | PromotionNeeded
+  | GameOver
+  | Say
+  | SoundCue
+  | PointsAwarded
+  | StarEarned;
 
 export interface Session {
   start(): Promise<SessionEvent[]>;
@@ -96,6 +118,8 @@ export function createSession(options: SessionOptions): Session {
   const childTurn = options.childColour === 'white' ? 'w' : 'b';
   /** What Undo took back, latest last: each entry is one turn (the child's move and any reply), in SAN. */
   const redoable: string[][] = [];
+  /** True once this game's result has earned its rewards. */
+  let rewarded = false;
 
   for (const san of options.moves ?? []) {
     try {
@@ -178,7 +202,20 @@ export function createSession(options: SessionOptions): Session {
     };
     const text = ended.length ? spokenResult(ended[0]) : check ? 'Check!' : undefined;
     const say: Say[] = text ? [{ type: 'say', text }] : [];
-    return [boardChanged(), sound, ...say, ...ended];
+    return [boardChanged(), sound, ...say, ...reward(ended[0]), ...ended];
+  }
+
+  /**
+   * What the game just finished earns, awarded once only: a finished game can't be undone, and its
+   * saved copy is cleared, so it is never resumed and rewarded again.
+   */
+  function reward(ended: GameOver | undefined): SessionEvent[] {
+    const rewards = options.rewards;
+    if (!ended || !rewards || rewarded) return [];
+    rewarded = true;
+    const events: SessionEvent[] = [rewards.points.award(pointsForResult(ended.result, rewards.strength))];
+    if (ended.result === 'won') events.push(rewards.stars.add(options.opponent.id));
+    return events;
   }
 
   /** One message for the end of the game (two would cut each other off when spoken). Gentle when the child loses. */
