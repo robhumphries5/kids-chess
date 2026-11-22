@@ -1,16 +1,20 @@
 import type { ColourChoice } from '../core/colour';
+import { HUNGRY_PIECES, type HungryPiece } from '../core/hungry-pieces';
 import type { Profile, ProfileStore } from '../core/profiles';
+import { createStars } from '../core/stars';
 import { createSavedGameStore, type SavedGame, type SavedGameStore } from '../core/saved-game';
 import { OPPONENTS, opponentById, type OpponentCharacter } from '../opponents/roster';
 import { startGame, type Game, type GameAudio } from './game-screen';
 import { showGrownUpArea } from './grown-up-area';
 import { createHold } from './hold';
+import { startHungryPieces } from './hungry-screen';
 import { createMenuChoice, type Choice } from './menu';
 import {
   AVATARS,
   avatarById,
   BLACK_PAWN_SVG,
   DICE_SVG,
+  HUNGRY_PIECES_SVG,
   MINI_GAMES_SVG,
   NEW_GAME_SVG,
   NEW_PROFILE_SVG,
@@ -58,6 +62,8 @@ export interface AppElements {
 /** A picture on a menu screen and what Go does once it is selected. */
 interface MenuItem extends Choice {
   picture: string;
+  /** Shows a star on the picture: an Opponent this Profile has beaten. */
+  starred?: boolean;
   onGo: () => void;
 }
 
@@ -149,16 +155,11 @@ export function startApp(
 
   function home(profile: Profile): void {
     current = profile;
-    const comingSoon = (name: string) => () => {
-      const text = `${name}: coming soon!`;
-      audio.speaker.say(text);
-      el.menuMessage.replaceChildren(spokenMessage(text, audio.speaker));
-    };
     showMenu(
       [
         { id: 'puzzles', name: 'Puzzles', picture: PUZZLES_SVG, onGo: () => puzzles(profile) },
         { id: 'play', name: 'Play', picture: PLAY_SVG, onGo: () => carryOnOrNew(profile) },
-        { id: 'mini-games', name: 'Mini-games', picture: MINI_GAMES_SVG, onGo: comingSoon('Mini-games') },
+        { id: 'mini-games', name: 'Mini-games', picture: MINI_GAMES_SVG, onGo: () => miniGames(profile) },
       ],
       { label: '↩', name: 'Change player', action: avatarPicker },
       profile,
@@ -171,8 +172,6 @@ export function startApp(
     el.starJar.onkeydown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') stickerBook(profile);
     };
-    // Points from anywhere (a game, a Mini-game) may have unlocked a sticker not yet celebrated.
-    celebrateStickers(el.overlay, createStickerBook(store, profile.id).takeNew(), audio);
   }
 
   function stickerBook(profile: Profile): void {
@@ -184,6 +183,43 @@ export function startApp(
     showProfileBadge(profile);
     el.stickerBook.hidden = false;
     showStickerBook(el.stickerBook, createStickerBook(store, profile.id), audio.speaker);
+  }
+
+  /** The Mini-games: just Hungry Pieces in v1. */
+  function miniGames(profile: Profile): void {
+    showMenu(
+      [{ id: 'hungry-pieces', name: 'Hungry Pieces', picture: HUNGRY_PIECES_SVG, onGo: () => hungryPicker(profile) }],
+      { label: '↩', name: 'Back', action: () => home(profile) },
+      profile,
+    );
+  }
+
+  /** Which piece is hungry: the five pieces, as the standard pictures. */
+  function hungryPicker(profile: Profile): void {
+    const items = HUNGRY_PIECES.map((piece) => ({
+      id: piece,
+      name: `${piece[0].toUpperCase()}${piece.slice(1)}`,
+      // chessground's own piece picture (its classes match our piece names), so it looks like the board.
+      picture: `<span class="cg-wrap menu-piece"><piece class="${piece} white"></piece></span>`,
+      onGo: () => hungryPieces(profile, piece),
+    }));
+    showMenu(items, { label: '↩', name: 'Back', action: () => miniGames(profile) }, profile);
+  }
+
+  function hungryPieces(profile: Profile, piece: HungryPiece): void {
+    el.menu.hidden = true;
+    el.go.hidden = true;
+    el.grownUpButton.hidden = true;
+    el.game.hidden = false;
+    game = startHungryPieces({ board: el.board, message: el.message, starJar: el.starJar }, audio, store, profile.id, piece);
+    const leave = () => {
+      game?.stop();
+      game = undefined;
+      home(profile);
+    };
+    // Points are awarded as each level finishes, so nothing is lost by leaving.
+    showCorner({ label: '🏠', name: 'Home', action: leave });
+    showProfileBadge(profile);
   }
 
   /**
@@ -209,12 +245,14 @@ export function startApp(
     );
   }
 
-  /** Who to play: every Opponent's picture. */
+  /** Who to play: every Opponent's picture, with a star on each one this Profile has beaten. */
   function opponentPicker(profile: Profile): void {
+    const stars = createStars(store, profile.id);
     const items = OPPONENTS.map((o) => ({
       id: o.id,
       name: o.name,
       picture: OPPONENT_PICTURES[o.id] ?? PLAY_SVG,
+      starred: stars.has(o.id),
       onGo: () => colourPicker(profile, o),
     }));
     showMenu(items, { label: '↩', name: 'Back', action: () => home(profile) }, profile);
@@ -240,11 +278,16 @@ export function startApp(
     el.grownUpButton.hidden = true;
     el.game.hidden = false;
     game = startGame(
-      { board: el.board, message: el.message, overlay: el.overlay, controls: el.gameControls },
+      { board: el.board, message: el.message, overlay: el.overlay, controls: el.gameControls, go: el.go, starJar: el.starJar },
       audio,
       opponent,
       colour,
-      { store: savedGames, profileId: profile.id, resume },
+      { store: savedGames, profileId: profile.id, profiles: store, resume },
+      () => {
+        game?.stop();
+        game = undefined;
+        opponentPicker(profile);
+      },
     );
     const leave = () => {
       game?.stop();
@@ -285,6 +328,9 @@ export function startApp(
   function confirmHome(leave: () => void): void {
     const before = [...el.overlay.childNodes];
     const wasHidden = el.overlay.hidden;
+    // The result card's Go Button would otherwise sit over this question.
+    const goWasHidden = el.go.hidden;
+    el.go.hidden = true;
     const question = 'Go home?';
     audio.speaker.say(question);
 
@@ -301,6 +347,7 @@ export function startApp(
     const no = confirmButton('♟️', 'Keep playing', () => {
       el.overlay.replaceChildren(...before);
       el.overlay.hidden = wasHidden;
+      el.go.hidden = goWasHidden;
     });
     choices.append(no, yes);
     card.append(heading, choices);
@@ -319,6 +366,9 @@ export function startApp(
     el.grownUpButton.hidden = true;
     showCorner(corner);
     showProfileBadge(profile);
+    // Points from anywhere (a game, a Mini-game) may have unlocked a sticker not yet celebrated:
+    // the first menu the child sees afterwards celebrates it.
+    if (profile) celebrateStickers(el.overlay, createStickerBook(store, profile.id).takeNew(), audio);
 
     const buttons = items.map((item) => {
       const button = document.createElement('button');
@@ -327,6 +377,12 @@ export function startApp(
       button.setAttribute('aria-label', item.name);
       button.setAttribute('aria-pressed', 'false');
       button.append(svgPicture(item.picture));
+      if (item.starred) {
+        const star = document.createElement('span');
+        star.className = 'choice-star';
+        star.textContent = '⭐';
+        button.append(star);
+      }
       button.addEventListener('click', () => {
         el.menuMessage.replaceChildren();
         menu.tap(item.id);
