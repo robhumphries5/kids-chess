@@ -122,10 +122,23 @@ export const PIG_SVG = svg(
     `<path d="M36 78 Q50 88 64 78" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/>`,
 );
 
+/** Dragon: a friendly green dragon with little horns, spiky crest and a puff of smoke. */
+export const DRAGON_SVG = svg(
+  `<path d="M30 22 L22 4 L40 16 Z" fill="#f5c84c"/><path d="M70 22 L78 4 L60 16 Z" fill="#f5c84c"/>` +
+    `<path d="M40 12 L46 2 L50 12 L54 2 L60 12 Z" fill="#3f9a5a"/>` +
+    `<path d="M14 46 Q14 14 50 14 Q86 14 86 46 Q86 62 76 70 Q72 92 50 92 Q28 92 24 70 Q14 62 14 46 Z" fill="#56b870"/>` +
+    `<ellipse cx="50" cy="74" rx="22" ry="15" fill="#a7e0a1"/>` +
+    eyes(44, 16, 6) +
+    `<circle cx="43" cy="68" r="2.5" fill="#2b2b2b"/><circle cx="57" cy="68" r="2.5" fill="#2b2b2b"/>` +
+    `<path d="M40 79 Q50 86 60 79" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="84" cy="22" r="6" fill="#dfe3e8"/><circle cx="92" cy="12" r="4" fill="#dfe3e8"/>`,
+);
+
 /** Each Opponent's picture on the Opponent picker, by Opponent id. */
 export const OPPONENT_PICTURES: Readonly<Record<string, string>> = {
   snail: PLAY_SVG,
   pig: PIG_SVG,
+  dragon: DRAGON_SVG,
 };
 
 const pawn = (fill: string, stroke: string) =>

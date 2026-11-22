@@ -10,6 +10,7 @@ import { promotionChoices } from './promotion-picker';
 import type { Sound } from './sound';
 import type { Speaker } from './speech';
 import { spokenMessage } from './spoken';
+import { showThinking, thinkingInMessage } from './thinking';
 
 /** Pause before showing the Opponent's reply, so the child sees their own move land. */
 const OPPONENT_DELAY_MS = 600;
@@ -76,7 +77,7 @@ function playOne(
   saving: GameSaving,
   resume: SavedGame | undefined,
 ): Game {
-  const opponent = character.create();
+  const opponent = showThinking(character.create(), thinkingInMessage(el.message, character.name));
   const session = createSession({
     kind: 'opponent-game',
     opponent,
