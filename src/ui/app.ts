@@ -28,6 +28,8 @@ import { startPuzzles } from './puzzle-screen';
 import { voiceSwitched } from './speech';
 import { spokenMessage } from './spoken';
 import { showStarJar } from './star-jar';
+import { celebrateStickers, showStickerBook } from './sticker-book';
+import { createStickerBook } from '../core/stickers';
 
 /** How long the Grown-up button must be held. Shorter holds do nothing. */
 const GROWN_UP_HOLD_MS = 3000;
@@ -51,6 +53,8 @@ export interface AppElements {
   /** The chosen Profile's Points, as a jar of stars. Shown wherever the badge is. */
   starJar: HTMLElement;
   grownUpArea: HTMLElement;
+  /** The Sticker Book screen, opened by tapping the star jar on the home screen. */
+  stickerBook: HTMLElement;
   /** Hold for 3 seconds to open the Grown-up Area. Only shown on the avatar picker. */
   grownUpButton: HTMLButtonElement;
 }
@@ -160,6 +164,25 @@ export function startApp(
       { label: '↩', name: 'Change player', action: avatarPicker },
       profile,
     );
+    // On home, the star jar opens the Sticker Book.
+    el.starJar.classList.add('opens-sticker-book');
+    el.starJar.setAttribute('role', 'button');
+    el.starJar.tabIndex = 0;
+    el.starJar.onclick = () => stickerBook(profile);
+    el.starJar.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') stickerBook(profile);
+    };
+  }
+
+  function stickerBook(profile: Profile): void {
+    el.menu.hidden = true;
+    el.go.hidden = true;
+    el.grownUpButton.hidden = true;
+    el.game.hidden = true;
+    showCorner({ label: '↩', name: 'Back', action: () => home(profile) });
+    showProfileBadge(profile);
+    el.stickerBook.hidden = false;
+    showStickerBook(el.stickerBook, createStickerBook(store, profile.id), audio.speaker);
   }
 
   /** The Mini-games: just Hungry Pieces in v1. */
@@ -335,6 +358,7 @@ export function startApp(
   function showMenu(items: MenuItem[], corner: CornerAction | undefined, profile: Profile | undefined): void {
     const menu = createMenuChoice(items, audio.speaker);
     el.game.hidden = true;
+    el.stickerBook.hidden = true;
     el.menu.hidden = false;
     el.menuMessage.replaceChildren();
     el.go.hidden = false;
@@ -342,6 +366,9 @@ export function startApp(
     el.grownUpButton.hidden = true;
     showCorner(corner);
     showProfileBadge(profile);
+    // Points from anywhere (a game, a Mini-game) may have unlocked a sticker not yet celebrated:
+    // the first menu the child sees afterwards celebrates it.
+    if (profile) celebrateStickers(el.overlay, createStickerBook(store, profile.id).takeNew(), audio);
 
     const buttons = items.map((item) => {
       const button = document.createElement('button');
@@ -386,6 +413,12 @@ export function startApp(
     if (avatar) el.profileBadge.setAttribute('aria-label', profile.name ?? avatar.name);
     el.starJar.hidden = !profile;
     if (profile) showStarJar(el.starJar, store.load(profile.id).points);
+    // Only the home screen makes the jar a button (see home).
+    el.starJar.classList.remove('opens-sticker-book');
+    el.starJar.setAttribute('role', 'img');
+    el.starJar.removeAttribute('tabindex');
+    el.starJar.onclick = null;
+    el.starJar.onkeydown = null;
   }
 
   function unusedAvatars(): Avatar[] {

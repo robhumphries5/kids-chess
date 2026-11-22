@@ -73,7 +73,10 @@ export function helpPresetSettings(preset: HelpPreset): HelpSettings {
 export interface ProfileData {
   helpPreset: HelpPreset;
   points: number;
+  /** Sticker ids unlocked, in unlock order. Never taken away. */
   stickers: string[];
+  /** Unlocked stickers not yet celebrated (see StickerBook.takeNew). */
+  newStickers: string[];
   ladderLevel: number;
   opponentsBeaten: string[];
   settings: ProfileSettings;
@@ -85,6 +88,7 @@ export function newProfileData(preset: HelpPreset): ProfileData {
     helpPreset: preset,
     points: 0,
     stickers: [],
+    newStickers: [],
     ladderLevel: 0,
     opponentsBeaten: [],
     settings: { voice: true, ...helpPresetSettings(preset) },
@@ -238,6 +242,7 @@ function mergeOverDefaults(saved: unknown): ProfileData {
     helpPreset,
     points: typeof s.points === 'number' ? s.points : d.points,
     stickers: stringArray(s.stickers) ?? [...d.stickers],
+    newStickers: stringArray(s.newStickers) ?? [...d.newStickers],
     ladderLevel: typeof s.ladderLevel === 'number' ? s.ladderLevel : d.ladderLevel,
     opponentsBeaten: stringArray(s.opponentsBeaten) ?? [...d.opponentsBeaten],
     settings: {
