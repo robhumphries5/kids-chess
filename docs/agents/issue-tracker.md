@@ -11,6 +11,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
+- **Close automatically from a commit or PR**: when a commit or PR completes an issue, put `Closes #<n>` in the commit message or PR body. GitHub closes the issue when it lands on `main` (on push for a direct commit, on merge for a PR). For partial work use `Part of #<n>`, which links without closing. A bare `(#<n>)` only links.
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
