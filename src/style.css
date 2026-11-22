@@ -1,7 +1,7 @@
 :root {
-  --bg: #f6efff;
-  --ink: #3b2a5c;
-  --accent: #b14dff;
+  --bg: #f3f1ec;
+  --ink: #312e2b;
+  --accent: #5d9948;
   --card: #ffffff;
 }
 
@@ -10,7 +10,7 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: var(--bg) linear-gradient(160deg, #fff0fa 0%, #f2ecff 50%, #e6fbff 100%) fixed;
+  background: var(--bg);
   color: var(--ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   touch-action: manipulation;
@@ -31,10 +31,10 @@ html, body {
 .board-wrap {
   width: min(92vw, 80vh);
   aspect-ratio: 1;
-  padding: 0.6rem;
-  border-radius: 1.2rem;
-  background: linear-gradient(135deg, #ff8fd0, #b48cff, #6fe3f0);
-  box-shadow: 0 0 1.5rem rgb(180 120 255 / 0.45);
+  padding: 0.4rem;
+  border-radius: 0.6rem;
+  background: #312e2b;
+  box-shadow: 0 0.4rem 1.2rem rgb(0 0 0 / 0.25);
 }
 
 #board { width: 100%; height: 100%; }
