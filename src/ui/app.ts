@@ -271,6 +271,8 @@ export function startApp(el: AppElements, store: ProfileStore, deviceAudio: Game
       return button;
     });
     el.menuChoices.replaceChildren(...buttons);
+    // Lets the CSS fit every choice on one row on short landscape screens.
+    el.menuChoices.style.setProperty('--count', String(items.length));
 
     el.go.onclick = () => menu.go()?.onGo();
   }
