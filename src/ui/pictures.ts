@@ -104,12 +104,19 @@ export const PLAY_SVG = svg(
     `<circle cx="74" cy="25" r="4" fill="#2b2b2b"/><circle cx="92" cy="25" r="4" fill="#2b2b2b"/>`,
 );
 
-/** Mini-games: a shiny apple (Hungry Pieces eats apples). */
-export const MINI_GAMES_SVG = svg(
+/** An apple: our own art. The shapes only, so the board can draw it on a square too. */
+export const APPLE_SHAPES =
   `<path d="M50 30 Q40 6 26 14" stroke="#7a4a2a" stroke-width="5" fill="none" stroke-linecap="round"/>` +
-    `<path d="M52 26 Q66 10 80 20 Q66 32 52 26 Z" fill="#5fb34a"/>` +
-    `<path d="M50 32 Q30 20 18 36 Q6 56 22 78 Q34 94 50 86 Q66 94 78 78 Q94 56 82 36 Q70 20 50 32 Z" fill="#e3423b"/>` +
-    `<ellipse cx="32" cy="48" rx="6" ry="10" fill="#fff" opacity="0.45"/>`,
+  `<path d="M52 26 Q66 10 80 20 Q66 32 52 26 Z" fill="#5fb34a"/>` +
+  `<path d="M50 32 Q30 20 18 36 Q6 56 22 78 Q34 94 50 86 Q66 94 78 78 Q94 56 82 36 Q70 20 50 32 Z" fill="#e3423b"/>` +
+  `<ellipse cx="32" cy="48" rx="6" ry="10" fill="#fff" opacity="0.45"/>`;
+
+/** Mini-games: a shiny apple (Hungry Pieces eats apples). */
+export const MINI_GAMES_SVG = svg(APPLE_SHAPES);
+
+/** Hungry Pieces on the Mini-games menu: an apple with a bite out of it. */
+export const HUNGRY_PIECES_SVG = svg(
+  APPLE_SHAPES + `<circle cx="86" cy="60" r="13" style="fill: var(--card, #fff)"/><circle cx="80" cy="74" r="9" style="fill: var(--card, #fff)"/>`,
 );
 
 /** Greedy Pig: a round pink pig with a big snout and a happy grin. */
