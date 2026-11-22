@@ -77,16 +77,44 @@ export function startApp(el: AppElements, store: ProfileStore, audio: GameAudio)
     el.go.hidden = true;
     el.game.hidden = false;
     game = startGame({ board: el.board, message: el.message, overlay: el.overlay }, audio);
-    showCorner({
-      label: '🏠',
-      name: 'Home',
-      action: () => {
-        game?.stop();
-        game = undefined;
-        home(profile);
-      },
-    });
+    const leave = () => {
+      game?.stop();
+      game = undefined;
+      home(profile);
+    };
+    showCorner({ label: '🏠', name: 'Home', action: () => confirmHome(leave) });
     showProfileBadge(profile);
+  }
+
+  /**
+   * One tap on 🏠 mid-game asks first, so a game isn't lost by accident. No Go Button on the game
+   * screen: the card's own two big buttons answer. "Keep playing" puts back whatever card was showing
+   * (say, the Promotion Picker).
+   */
+  function confirmHome(leave: () => void): void {
+    const before = [...el.overlay.childNodes];
+    const wasHidden = el.overlay.hidden;
+    const question = 'Go home?';
+    audio.speaker.say(question);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    const heading = document.createElement('h2');
+    heading.append(spokenMessage(question, audio.speaker));
+    const choices = document.createElement('div');
+    choices.className = 'confirm-choices';
+    const yes = confirmButton('🏠', 'Go home', () => {
+      el.overlay.hidden = true;
+      leave();
+    });
+    const no = confirmButton('♟️', 'Keep playing', () => {
+      el.overlay.replaceChildren(...before);
+      el.overlay.hidden = wasHidden;
+    });
+    choices.append(no, yes);
+    card.append(heading, choices);
+    el.overlay.replaceChildren(card);
+    el.overlay.hidden = false;
   }
 
   function showMenu(items: MenuItem[], corner: CornerAction | undefined, profile: Profile | undefined): void {
@@ -157,4 +185,20 @@ function svgPicture(svg: string): HTMLElement {
   picture.className = 'picture';
   picture.innerHTML = svg; // Our own constant art, never user text.
   return picture;
+}
+
+/** A big picture-and-word button on a confirmation card. */
+function confirmButton(picture: string, label: string, onTap: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'confirm-choice';
+  button.setAttribute('aria-label', label);
+  const icon = document.createElement('span');
+  icon.className = 'confirm-icon';
+  icon.textContent = picture;
+  const words = document.createElement('span');
+  words.textContent = label;
+  button.append(icon, words);
+  button.addEventListener('click', onTap);
+  return button;
 }

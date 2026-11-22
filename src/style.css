@@ -237,3 +237,23 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .go-button.ready { animation: none; }
 }
+
+/* The "Go home?" card: two big answers side by side. */
+.confirm-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
+.confirm-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: min(9rem, 38vw);
+  padding: 0.8rem 0.5rem;
+  font: inherit;
+  font-size: 1.3rem;
+  border: 3px solid var(--accent);
+  border-radius: 1rem;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+.confirm-choice:active { transform: scale(0.95); }
+.confirm-icon { font-size: 3.5rem; line-height: 1; }
