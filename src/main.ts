@@ -58,3 +58,12 @@ startApp(
   createProfileStore(),
   { speaker: createSpeaker(), sound },
 );
+
+// Offline support: precaches the whole build (see build/service-worker.ts).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // Offline support is a bonus: the app still works online without it.
+    });
+  });
+}
