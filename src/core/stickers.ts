@@ -56,6 +56,14 @@ export function stickersEarned(total: number): Sticker[] {
   return STICKERS.slice(0, count);
 }
 
+/** The cheer spoken when stickers unlock, naming each one. */
+export function stickerUnlockedLine(stickers: readonly Sticker[]): string {
+  const names = stickers.map((s) => s.name);
+  if (names.length <= 1) return `Hooray! A new sticker for your Sticker Book: ${names[0] ?? 'a surprise'}!`;
+  const list = `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  return `Hooray! ${names.length} new stickers for your Sticker Book: ${list}!`;
+}
+
 /** One page of the Sticker Book: a sticker, and whether this Profile has it yet. */
 export interface StickerPage {
   sticker: Sticker;

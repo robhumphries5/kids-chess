@@ -459,3 +459,67 @@ html, body {
   .go-button { left: auto; right: 1rem; bottom: 1rem; transform: none; width: 5.5rem; height: 5.5rem; font-size: 1.4rem; }
   .go-button:active { transform: scale(0.93); }
 }
+
+/* The Sticker Book: opened by tapping the star jar on the home screen. */
+.star-jar.opens-sticker-book {
+  cursor: pointer;
+  border-radius: 1rem;
+  background: var(--card);
+  box-shadow: 0 0.2rem 0.6rem rgb(0 0 0 / 0.15);
+  animation: jar-beckon 3s ease-in-out infinite;
+}
+@keyframes jar-beckon {
+  0%, 85%, 100% { transform: none; }
+  90% { transform: rotate(-6deg) scale(1.06); }
+  95% { transform: rotate(5deg) scale(1.06); }
+}
+.sticker-book-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(60rem, 100%);
+  padding: 4.5rem 1rem 2rem;
+}
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(4.5rem, 14vw, 7rem), 1fr));
+  gap: clamp(0.5rem, 2vw, 1rem);
+  width: 100%;
+  padding: 1rem;
+  border-radius: 1.5rem;
+  background: #fbf3df;
+  box-shadow: inset 0 0 0 4px #e7d9b8;
+}
+.sticker {
+  display: block;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.sticker svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 0.15rem 0.2rem rgb(0 0 0 / 0.2)); }
+.sticker.locked svg { filter: none; }
+.sticker.wiggle { animation: sticker-wiggle 500ms ease-out; }
+@keyframes sticker-wiggle {
+  30% { transform: scale(1.2) rotate(-8deg); }
+  60% { transform: scale(0.95) rotate(6deg); }
+}
+.sticker-book-message .spoken { font-size: 1.5rem; font-weight: 700; }
+.sticker-celebration-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.sticker-celebration .sticker { width: clamp(7rem, 22vw, 11rem); }
+.sticker.new { animation: sticker-pop 900ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes sticker-pop {
+  0% { transform: scale(0) rotate(-180deg); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .star-jar.opens-sticker-book, .sticker.wiggle, .sticker.new { animation: none; }
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { awardPoints, createPointsLedger } from './points';
 import { createProfileStore, type KeyValueStorage } from './profiles';
-import { createStickerBook, stickerMilestone, STICKERS } from './stickers';
+import { createStickerBook, stickerMilestone, STICKERS, stickerUnlockedLine } from './stickers';
 
 function memoryStorage(map = new Map<string, string>()): KeyValueStorage {
   return {
@@ -106,6 +106,20 @@ describe('Sticker milestones', () => {
     const after = awardPoints(store, id, 1000);
     expect(after.points.total).toBe(STICKERS.length * 100 + 1000);
     expect(after.stickers).toEqual([]);
+  });
+});
+
+describe('What is said when stickers unlock', () => {
+  const sticker = (id: string) => STICKERS.find((s) => s.id === id)!;
+
+  it('names one new sticker', () => {
+    expect(stickerUnlockedLine([sticker('star-gold')])).toBe('Hooray! A new sticker for your Sticker Book: Gold star!');
+  });
+
+  it('names every sticker when several come at once', () => {
+    expect(stickerUnlockedLine([sticker('star-gold'), sticker('heart-red'), sticker('sun-yellow')])).toBe(
+      'Hooray! 3 new stickers for your Sticker Book: Gold star, Red heart and Sunshine!',
+    );
   });
 });
 
