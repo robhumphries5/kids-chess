@@ -1,6 +1,6 @@
 import type { Speaker } from './speech';
 
-/** A message that was spoken, shown with a 🔊 button to hear it again. */
+/** A message that was spoken, shown with a 🔊 button to hear it again (no button while the voice is off). */
 export function spokenMessage(text: string, speaker: Speaker): HTMLElement {
   const line = document.createElement('span');
   line.className = 'spoken';
@@ -11,6 +11,7 @@ export function spokenMessage(text: string, speaker: Speaker): HTMLElement {
   replay.textContent = '🔊';
   replay.setAttribute('aria-label', 'Hear it again');
   replay.addEventListener('click', () => speaker.say(text));
-  line.append(words, replay);
+  line.append(words);
+  if (speaker.voiceOn !== false) line.append(replay);
   return line;
 }

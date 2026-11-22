@@ -105,6 +105,8 @@ export interface ProfileStore {
   update(id: string, changes: ProfileChanges): void;
   /** Forget a Profile and everything it earned. The Grown-up Area asks first. */
   remove(id: string): void;
+  /** Change how much help: the help switches go back to the new preset's defaults; voice and progress stay. */
+  setHelpPreset(id: string, preset: HelpPreset): void;
   load(id: string): ProfileData;
   save(id: string, data: ProfileData): void;
 }
@@ -192,6 +194,10 @@ export function createProfileStore(
     },
     load,
     save,
+    setHelpPreset(id, preset) {
+      const data = load(id);
+      save(id, { ...data, helpPreset: preset, settings: { ...data.settings, ...helpPresetSettings(preset) } });
+    },
   };
 }
 

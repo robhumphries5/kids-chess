@@ -75,10 +75,23 @@ export function showGrownUpArea(root: HTMLElement, store: ProfileStore, onDone: 
       }),
     );
 
-    // Chosen once, when the Profile is made: it only sets the switches' starting values.
-    const preset = el('span');
-    preset.textContent = `Started with ${HELP_PRESET_NAMES[data.helpPreset].toLowerCase()}`;
+    const preset = el('select') as HTMLSelectElement;
+    for (const p of HELP_PRESETS) {
+      const option = el('option') as HTMLOptionElement;
+      option.value = p;
+      option.textContent = HELP_PRESET_NAMES[p];
+      option.selected = p === data.helpPreset;
+      preset.append(option);
+    }
+    preset.addEventListener('change', () => {
+      const chosen = HELP_PRESETS.find((p) => p === preset.value);
+      if (chosen) store.setHelpPreset(profile.id, chosen);
+      render();
+    });
     const help = field('Help', preset);
+    const helpNote = el('p', 'grown-up-note');
+    helpNote.textContent = 'Changing this puts the help switches back to that level’s settings.';
+    help.append(helpNote);
 
     const settings = el('fieldset', 'grown-up-settings');
     const legend = el('legend');

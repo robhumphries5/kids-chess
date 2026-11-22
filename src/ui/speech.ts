@@ -6,6 +6,8 @@ const RATE = 0.9;
 export interface Speaker {
   /** Say `text`, cutting off anything still being spoken. Silent when the browser has no voice. */
   say(text: string): void;
+  /** False when this Profile's voice is switched off, so 🔊 replay buttons can hide. Absent means on. */
+  readonly voiceOn?: boolean;
 }
 
 /** Defaults to the browser's speechSynthesis; both are absent in some browsers (and in tests). */
@@ -46,6 +48,9 @@ export function voiceSwitched(speaker: Speaker, isOn: () => boolean): Speaker {
   return {
     say(text) {
       if (isOn()) speaker.say(text);
+    },
+    get voiceOn() {
+      return isOn();
     },
   };
 }

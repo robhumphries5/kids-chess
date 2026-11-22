@@ -79,3 +79,13 @@ describe('Voice switch', () => {
     expect(said).toEqual(['Play', 'Go home?']);
   });
 });
+
+describe('Voice switch state', () => {
+  it('tells messages whether the voice is on, so replay buttons can hide', () => {
+    let on = true;
+    const speaker = voiceSwitched({ say() {} }, () => on);
+    expect(speaker.voiceOn).toBe(true);
+    on = false;
+    expect(speaker.voiceOn).toBe(false);
+  });
+});

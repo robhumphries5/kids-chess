@@ -180,6 +180,22 @@ describe('Help preset', () => {
     expect(data.settings.voice).toBe(true);
   });
 
+  it('the preset can be changed later: the help switches reset to its defaults, voice and progress stay', () => {
+    const map = new Map<string, string>();
+    const store = createProfileStore(memoryStorage(map));
+    const fox = store.add('fox', { preset: 'lots' });
+    const before = store.load(fox.id);
+    store.save(fox.id, { ...before, points: 40, settings: { ...before.settings, voice: false } });
+    store.setHelpPreset(fox.id, 'some');
+    const data = createProfileStore(memoryStorage(map)).load(fox.id);
+    expect(data.helpPreset).toBe('some');
+    expect(data.points).toBe(40);
+    expect(data.settings.voice).toBe(false);
+    expect(data.settings.missedChance).toEqual({ checkmate: true, queen: true, rook: false, bishopKnight: false });
+    store.setHelpPreset(fox.id, 'lots');
+    expect(store.load(fox.id).settings.missedChance.rook).toBe(true);
+  });
+
   it('missing switches in "Some help" data take that preset\'s defaults', () => {
     const storage = memoryStorage(
       new Map([['kids-chess:profile:a:v1', JSON.stringify({ helpPreset: 'some', settings: { voice: false } })]]),
