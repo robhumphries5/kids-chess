@@ -8,6 +8,7 @@ import type { OpponentCharacter } from '../opponents/roster';
 import type { Sound } from './sound';
 import type { Speaker } from './speech';
 import { spokenMessage } from './spoken';
+import { showThinking, thinkingInMessage } from './thinking';
 
 /** The Promotion Picker's choices, in order. `role` is chessground's piece class, so the pictures match the board. */
 const PROMOTION_CHOICES: readonly { piece: PromotionPiece; name: string; role: Role }[] = [
@@ -62,7 +63,7 @@ function playOne(
   childColour: Colour,
   playAgain: () => void,
 ): Game {
-  const opponent = character.create();
+  const opponent = showThinking(character.create(), thinkingInMessage(el.message, character.name));
   const session = createSession({ kind: 'opponent-game', opponent, childColour });
   let busy = false;
   let lastBoardEvent: BoardChanged | undefined;

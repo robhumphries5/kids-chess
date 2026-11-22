@@ -128,6 +128,11 @@ html, body {
   box-shadow: 0 0.2rem 0.6rem rgb(0 0 0 / 0.15);
 }
 .spoken { display: inline-flex; align-items: center; gap: 0.5rem; }
+/* "Dragon is thinking…" while an engine Opponent picks its move. Not spoken: it's only a wait. */
+.message .thinking { margin: 0; font-size: 1.6rem; font-weight: 700; color: var(--ink); opacity: 0.8; }
+.thinking-dots { display: inline-block; animation: thinking-pulse 1.2s ease-in-out infinite; }
+@keyframes thinking-pulse { 50% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .thinking-dots { animation: none; } }
 .replay-button {
   font: inherit;
   font-size: 1.6rem;
