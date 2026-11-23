@@ -141,10 +141,52 @@ export const DRAGON_SVG = svg(
     `<circle cx="84" cy="22" r="6" fill="#dfe3e8"/><circle cx="92" cy="12" r="4" fill="#dfe3e8"/>`,
 );
 
+/** Silly Puppy: a goofy brown puppy with floppy ears, a patch over one eye and its tongue out. */
+export const PUPPY_SVG = svg(
+  `<ellipse cx="17" cy="44" rx="11" ry="24" fill="#7a4a2a" transform="rotate(18 17 44)"/>` +
+    `<ellipse cx="83" cy="44" rx="11" ry="24" fill="#7a4a2a" transform="rotate(-18 83 44)"/>` +
+    `<circle cx="50" cy="52" r="34" fill="#d9a066"/>` +
+    `<circle cx="64" cy="46" r="11" fill="#a86a3c"/>` +
+    eyes(46, 14) +
+    `<ellipse cx="50" cy="64" rx="15" ry="11" fill="#f2d2a9"/>` +
+    `<ellipse cx="50" cy="59" rx="6" ry="4.5" fill="#2b2b2b"/>` +
+    `<path d="M42 68 Q46 72 50 68 Q54 72 58 68" stroke="#2b2b2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>` +
+    `<path d="M50 70 V80 Q50 86 55 86 Q60 86 60 80 V70 Z" fill="#f07a8c"/>`,
+);
+
+/** Clever Cat: a grey cat with pointed ears, green eyes and whiskers. */
+export const CAT_SVG = svg(
+  `<path d="M16 46 L20 8 L44 28 Z" fill="#8c93a3"/><path d="M84 46 L80 8 L56 28 Z" fill="#8c93a3"/>` +
+    `<path d="M22 38 L24 18 L36 28 Z" fill="#f7b8c8"/><path d="M78 38 L76 18 L64 28 Z" fill="#f7b8c8"/>` +
+    `<ellipse cx="50" cy="56" rx="38" ry="34" fill="#a3aab8"/>` +
+    `<ellipse cx="35" cy="50" rx="7" ry="8" fill="#7fc65a"/><ellipse cx="65" cy="50" rx="7" ry="8" fill="#7fc65a"/>` +
+    `<ellipse cx="35" cy="50" rx="2.5" ry="6" fill="#2b2b2b"/><ellipse cx="65" cy="50" rx="2.5" ry="6" fill="#2b2b2b"/>` +
+    `<path d="M45 62 L55 62 L50 67 Z" fill="#f08aa4"/>` +
+    `<path d="M42 72 Q46 76 50 70 Q54 76 58 72" stroke="#2b2b2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>` +
+    `<path d="M8 60 L30 64 M8 70 L30 68 M92 60 L70 64 M92 70 L70 68" stroke="#4a4f5a" stroke-width="2" stroke-linecap="round"/>`,
+);
+
+/** Wise Owl: a round brown owl with big eyes, ear tufts and a little pair of glasses. */
+export const OWL_SVG = svg(
+  `<path d="M18 30 L22 8 L38 22 Z" fill="#6e5236"/><path d="M82 30 L78 8 L62 22 Z" fill="#6e5236"/>` +
+    `<ellipse cx="50" cy="56" rx="38" ry="38" fill="#8f6a45"/>` +
+    `<ellipse cx="50" cy="70" rx="22" ry="20" fill="#e8d3b0"/>` +
+    `<circle cx="34" cy="44" r="14" fill="#fff6ea"/><circle cx="66" cy="44" r="14" fill="#fff6ea"/>` +
+    `<circle cx="34" cy="44" r="7" fill="#2b2b2b"/><circle cx="66" cy="44" r="7" fill="#2b2b2b"/>` +
+    `<circle cx="36" cy="42" r="2.5" fill="#fff"/><circle cx="68" cy="42" r="2.5" fill="#fff"/>` +
+    `<circle cx="34" cy="44" r="15" fill="none" stroke="#3a3a3a" stroke-width="3"/><circle cx="66" cy="44" r="15" fill="none" stroke="#3a3a3a" stroke-width="3"/>` +
+    `<path d="M49 44 H51" stroke="#3a3a3a" stroke-width="3"/>` +
+    `<path d="M44 58 L56 58 L50 68 Z" fill="#f5a623"/>` +
+    `<path d="M38 76 Q42 80 46 76 M54 76 Q58 80 62 76 M46 84 Q50 88 54 84" stroke="#b89a70" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
+);
+
 /** Each Opponent's picture on the Opponent picker, by Opponent id. */
 export const OPPONENT_PICTURES: Readonly<Record<string, string>> = {
   snail: PLAY_SVG,
   pig: PIG_SVG,
+  puppy: PUPPY_SVG,
+  cat: CAT_SVG,
+  owl: OWL_SVG,
   dragon: DRAGON_SVG,
 };
 

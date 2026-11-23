@@ -1,9 +1,12 @@
 import type { Random } from '../core/random';
 import type { Analyser } from '../engine/analyser';
 import { sharedStockfish } from '../engine/stockfish-analyser';
+import { createCat } from './cat';
 import { createDragon } from './dragon';
 import type { Opponent } from './opponent';
+import { createOwl } from './owl';
 import { createPig } from './pig';
+import { createPuppy } from './puppy';
 import { createSnail } from './snail';
 
 /** What an Opponent may be made with. Tests pass a seeded `random` and a fake `analyser`. */
@@ -33,6 +36,9 @@ export interface OpponentCharacter {
 export const OPPONENTS: readonly OpponentCharacter[] = [
   { id: 'snail', name: 'Sleepy Snail', strength: 1, create: ({ random } = {}) => createSnail(random) },
   { id: 'pig', name: 'Greedy Pig', strength: 2, create: ({ random } = {}) => createPig(random) },
+  { id: 'puppy', name: 'Silly Puppy', strength: 3, create: ({ random, analyser } = {}) => createPuppy(analyser ?? sharedStockfish(), random) },
+  { id: 'cat', name: 'Clever Cat', strength: 4, create: ({ random, analyser } = {}) => createCat(analyser ?? sharedStockfish(), random) },
+  { id: 'owl', name: 'Wise Owl', strength: 5, create: ({ random, analyser } = {}) => createOwl(analyser ?? sharedStockfish(), random) },
   { id: 'dragon', name: 'Dragon', strength: 6, create: ({ random, analyser } = {}) => createDragon(analyser ?? sharedStockfish(), random) },
 ];
 
