@@ -121,3 +121,68 @@ describe('Blunder Warnings in a game', () => {
     expect(says).toEqual([{ type: 'say', text: 'Check! The knight could take your queen!' }]);
   });
 });
+
+describe('Missed-Chance Alerts in a game', () => {
+  /** White to move. After a3, Black's queen can go to d5, where the c3 knight could take it. */
+  const LEAVES_QUEEN = '7k/8/8/7q/8/2N5/P7/6K1 w - - 0 1';
+  const alerts = (missedChance: KindSwitches = ALL_ON): GameHelp => ({ analyser: createFakeAnalyser({}), missedChance });
+  const alertGame = (opponent: Opponent, gameHelp?: GameHelp, fen = LEAVES_QUEEN) =>
+    createSession({ kind: 'opponent-game', opponent, childColour: 'white', fen, help: gameHelp });
+
+  it('when the Opponent leaves a treat, the child is told at the start of their turn, without saying where', async () => {
+    const session = alertGame(scripted('h5d5'), alerts());
+    await session.start();
+    const events = await session.move({ from: 'a2', to: 'a3' });
+    const text = 'Ooh! You can take a queen! Can you find it?';
+    expect(events.slice(-4)).toEqual([
+      expect.objectContaining({ type: 'board-changed', childToMove: true }),
+      { type: 'sound', sound: 'move' },
+      { type: 'missed-chance', kind: 'queen', text },
+      { type: 'say', text },
+    ]);
+  });
+
+  it('the child may play any move afterwards, not just the treat', async () => {
+    const opponent = scripted('h5d5', 'h8g8');
+    const session = alertGame(opponent, alerts());
+    await session.start();
+    await session.move({ from: 'a2', to: 'a3' });
+    const events = await session.move({ from: 'a3', to: 'a4' });
+    expect(events.map((e) => e.type)).not.toContain('move-rejected');
+    expect(events).toContainEqual(expect.objectContaining({ type: 'opponent-moved', san: 'Kg8' }));
+  });
+
+  it('with that kind switched off, nothing is said', async () => {
+    const session = alertGame(scripted('h5d5'), alerts({ ...ALL_ON, queen: false }));
+    await session.start();
+    const events = await session.move({ from: 'a2', to: 'a3' });
+    expect(events.map((e) => e.type)).not.toContain('missed-chance');
+    expect(events.map((e) => e.type)).not.toContain('say');
+  });
+
+  it('with no alerts in the help, nothing is said', async () => {
+    const session = alertGame(scripted('h5d5'), help());
+    await session.start();
+    const events = await session.move({ from: 'a2', to: 'a3' });
+    expect(events.map((e) => e.type)).not.toContain('missed-chance');
+  });
+
+  it('a check that leaves a treat says both, in one message', async () => {
+    // After a3, Qd4+ checks the king on g1, and the e2 knight can take the queen.
+    const session = alertGame(scripted('h4d4'), alerts(), '7k/8/8/8/7q/8/P3N3/6K1 w - - 0 1');
+    await session.start();
+    const says = (await session.move({ from: 'a2', to: 'a3' })).filter((e) => e.type === 'say');
+    expect(says).toEqual([{ type: 'say', text: 'Check! Ooh! You can take a queen! Can you find it?' }]);
+  });
+
+  it('when the Opponent moves first, the alert comes at the start of the child’s first turn', async () => {
+    const session = createSession({
+      kind: 'opponent-game',
+      opponent: scripted('h5d5'),
+      childColour: 'white',
+      fen: '7k/8/8/7q/8/2N5/P7/6K1 b - - 0 1',
+      help: alerts(),
+    });
+    expect(await session.start()).toContainEqual({ type: 'missed-chance', kind: 'queen', text: 'Ooh! You can take a queen! Can you find it?' });
+  });
+});
