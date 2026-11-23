@@ -2,6 +2,7 @@ import {
   HELP_PRESET_NAMES,
   HELP_PRESETS,
   type HelpPreset,
+  type KindSwitches,
   type Profile,
   type ProfileSettings,
   type ProfileStore,
@@ -18,12 +19,30 @@ interface SettingSwitch {
   set(settings: ProfileSettings, on: boolean): ProfileSettings;
 }
 
+/** What each of the four kinds is called on its switch. */
+const KIND_LABELS: Readonly<Record<keyof KindSwitches, string>> = {
+  checkmate: 'checkmate',
+  queen: 'losing the queen',
+  rook: 'losing a rook',
+  bishopKnight: 'losing a bishop or knight',
+};
+
+/** One switch per kind for a four-kind help feature (Blunder Warnings, Missed-Chance Alerts). */
+function kindSwitches(group: 'blunderWarning' | 'missedChance', name: string): SettingSwitch[] {
+  return (Object.keys(KIND_LABELS) as (keyof KindSwitches)[]).map((kind) => ({
+    label: `${name}: ${KIND_LABELS[kind]}`,
+    get: (s) => s[group][kind],
+    set: (s, on) => ({ ...s, [group]: { ...s[group], [kind]: on } }),
+  }));
+}
+
 const SETTING_SWITCHES: readonly SettingSwitch[] = [
   {
     label: 'Speak out loud',
     get: (s) => s.voice,
     set: (s, on) => ({ ...s, voice: on }),
   },
+  ...kindSwitches('blunderWarning', 'Blunder Warning'),
 ];
 
 /** Long enough for any real name; keeps the layout sane. */

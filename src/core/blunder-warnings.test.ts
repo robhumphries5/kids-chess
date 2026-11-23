@@ -17,29 +17,29 @@ const move = (uci: string) => ({ from: uci.slice(0, 2), to: uci.slice(2, 4) });
 
 describe('findBlunder', () => {
   it('a queen left where a knight can take it', async () => {
-    expect(await findBlunder('6k1/8/5n2/8/8/8/8/3Q2K1 w - - 0 1', move('d1d5'), silent, ALL_ON)).toEqual({
+    expect(await findBlunder('6k1/8/5n2/8/8/8/8/3Q2K1 w - - 0 1', move('d1d5'), silent, ALL_ON)).toMatchObject({
       kind: 'queen',
       reason: 'The knight could take your queen!',
     });
   });
 
   it('a rook, a bishop or a knight left to be taken', async () => {
-    expect(await findBlunder('6k1/8/5n2/8/8/8/8/3R2K1 w - - 0 1', move('d1d5'), silent, ALL_ON)).toEqual({
+    expect(await findBlunder('6k1/8/5n2/8/8/8/8/3R2K1 w - - 0 1', move('d1d5'), silent, ALL_ON)).toMatchObject({
       kind: 'rook',
       reason: 'The knight could take your rook!',
     });
-    expect(await findBlunder('6k1/8/5n2/8/4B3/8/8/6K1 w - - 0 1', move('e4d5'), silent, ALL_ON)).toEqual({
+    expect(await findBlunder('6k1/8/5n2/8/4B3/8/8/6K1 w - - 0 1', move('e4d5'), silent, ALL_ON)).toMatchObject({
       kind: 'bishopKnight',
       reason: 'The knight could take your bishop!',
     });
-    expect(await findBlunder('6k1/8/5n2/8/8/2N5/8/6K1 w - - 0 1', move('c3d5'), silent, ALL_ON)).toEqual({
+    expect(await findBlunder('6k1/8/5n2/8/8/2N5/8/6K1 w - - 0 1', move('c3d5'), silent, ALL_ON)).toMatchObject({
       kind: 'bishopKnight',
       reason: 'The knight could take your knight!',
     });
   });
 
   it('works for black too', async () => {
-    expect(await findBlunder('3q2k1/8/8/8/8/2N5/8/6K1 b - - 0 1', move('d8d5'), silent, ALL_ON)).toEqual({
+    expect(await findBlunder('3q2k1/8/8/8/8/2N5/8/6K1 b - - 0 1', move('d8d5'), silent, ALL_ON)).toMatchObject({
       kind: 'queen',
       reason: 'The knight could take your queen!',
     });
@@ -52,7 +52,7 @@ describe('findBlunder', () => {
 
   it('a move that lets the Opponent checkmate next', async () => {
     // The rook leaves the back rank, so the black rook can mate on d1.
-    expect(await findBlunder(BACK_RANK, move('a1a7'), silent, ALL_ON)).toEqual({
+    expect(await findBlunder(BACK_RANK, move('a1a7'), silent, ALL_ON)).toMatchObject({
       kind: 'checkmate',
       reason: 'The rook could checkmate you!',
     });
@@ -64,8 +64,15 @@ describe('findBlunder', () => {
     expect(await findBlunder(FORK, move('d1d5'), silent, ALL_ON)).toMatchObject({ kind: 'queen' });
   });
 
+  it('says where the danger comes from, so it can be shown on the board', async () => {
+    expect(await findBlunder('6k1/8/5n2/8/8/8/8/3Q2K1 w - - 0 1', move('d1d5'), silent, ALL_ON)).toMatchObject({
+      threat: ['f6', 'd5'],
+    });
+    expect(await findBlunder(BACK_RANK, move('a1a7'), silent, ALL_ON)).toMatchObject({ threat: ['d8', 'd1'] });
+  });
+
   it('names the smallest piece that could take it', async () => {
-    expect(await findBlunder('3r2k1/8/4p3/8/8/8/8/3Q2K1 w - - 0 1', move('d1d5'), silent, ALL_ON)).toEqual({
+    expect(await findBlunder('3r2k1/8/4p3/8/8/8/8/3Q2K1 w - - 0 1', move('d1d5'), silent, ALL_ON)).toMatchObject({
       kind: 'queen',
       reason: 'The pawn could take your queen!',
     });
@@ -78,7 +85,7 @@ describe('findBlunder', () => {
 
     it('checkmate', async () => {
       expect(await findBlunder(MATE_AND_QUEEN, move('a1a7'), silent, ALL_ON)).toMatchObject({ kind: 'checkmate' });
-      expect(await findBlunder(MATE_AND_QUEEN, move('a1a7'), silent, off('checkmate'))).toEqual({
+      expect(await findBlunder(MATE_AND_QUEEN, move('a1a7'), silent, off('checkmate'))).toMatchObject({
         kind: 'queen',
         reason: 'The knight could take your queen!',
       });

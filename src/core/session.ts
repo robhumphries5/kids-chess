@@ -1,7 +1,7 @@
 import { Chess } from 'chess.js';
 import type { Analyser } from '../engine/analyser';
 import type { MoveChoice, Opponent } from '../opponents/opponent';
-import { findBlunder, type BlunderKind } from './blunder-warnings';
+import { findBlunder, type Blunder } from './blunder-warnings';
 import { pointsForResult } from './game-rewards';
 import type { PointsAwarded, PointsLedger } from './points';
 import type { KindSwitches } from './profiles';
@@ -113,10 +113,8 @@ export interface SoundCue {
  * The child's move (already played) gives something away. The Opponent waits until the child
  * chooses Keep it (`keep`) or Undo (`undo`); the move itself is never blocked. The reason is spoken too.
  */
-export interface BlunderWarning {
+export interface BlunderWarning extends Blunder {
   type: 'blunder-warning';
-  kind: BlunderKind;
-  reason: string;
 }
 
 export type SessionEvent =

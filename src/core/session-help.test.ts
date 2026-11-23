@@ -42,7 +42,7 @@ describe('Blunder Warnings in a game', () => {
     expect(events).toEqual([
       expect.objectContaining({ type: 'board-changed', fen: QUEEN_ON_D5, childToMove: false, canUndo: true }),
       { type: 'sound', sound: 'move' },
-      { type: 'blunder-warning', kind: 'queen', reason: 'The knight could take your queen!' },
+      { type: 'blunder-warning', kind: 'queen', reason: 'The knight could take your queen!', threat: ['f6', 'd5'] },
       { type: 'say', text: 'The knight could take your queen!' },
     ]);
     expect(opponent.asked).toBe(0);

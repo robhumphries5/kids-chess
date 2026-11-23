@@ -15,6 +15,8 @@ export interface Blunder {
   kind: BlunderKind;
   /** Why, to be spoken: e.g. "The knight could take your queen!" */
   reason: string;
+  /** The Opponent's move it warns about, as [from, to], to point at on the board. */
+  threat: [string, string];
 }
 
 /** A quick look is enough: the child is waiting to see the Opponent's reply. */
@@ -48,7 +50,11 @@ export async function findBlunder(
 }
 
 function mateBlunders(after: string): Blunder[] {
-  return matesInOne(after).slice(0, 1).map((m) => ({ kind: 'checkmate', reason: `The ${PIECE_NAMES[m.piece]} could checkmate you!` }));
+  return matesInOne(after).slice(0, 1).map((m) => ({
+    kind: 'checkmate',
+    reason: `The ${PIECE_NAMES[m.piece]} could checkmate you!`,
+    threat: [m.from, m.to],
+  }));
 }
 
 /** The child's pieces the Opponent can now win, biggest first, each taken by its cheapest attacker. */
@@ -61,6 +67,7 @@ function pieceBlunders(after: string, played: Move): Blunder[] {
     .map((c) => ({
       kind: PIECE_KINDS[c.captured!]!,
       reason: `The ${PIECE_NAMES[c.piece]} could take your ${PIECE_NAMES[c.captured!]}!`,
+      threat: [c.from, c.to],
     }));
 }
 
