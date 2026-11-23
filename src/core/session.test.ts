@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createSession, type SessionEvent } from './session';
 import type { Opponent } from '../opponents/opponent';
 import { createSavedGameStore } from './saved-game';
+import { createPointsLedger } from './points';
+import { createProfileStore } from './profiles';
+import { createStars } from './stars';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -536,6 +539,132 @@ describe('Opponent game Session', () => {
       });
       const events = await session.start();
       expect(events[0]).toMatchObject({ fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1' });
+    });
+  });
+
+  describe('rewards at the end of a game', () => {
+    const MATE_IN_ONE = '6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1';
+    /** The Opponent's rook mates on a1 after any quiet child move. */
+    const LOSING = '6k1/r7/8/8/8/8/1P3PPP/6K1 w - - 0 1';
+    const STALEMATE_IN_ONE = 'k7/8/1K6/8/8/8/8/2Q5 w - - 0 1';
+
+    /** A fresh Profile, and the Session's rewards for an Opponent of `strength`. */
+    function profile(strength: number) {
+      const store = createProfileStore(undefined);
+      const { id } = store.add('fox');
+      return {
+        store,
+        id,
+        rewards: { points: createPointsLedger(store, id), stars: createStars(store, id), strength },
+      };
+    }
+
+    it('winning awards the Opponent’s Points through the ledger and stars that Opponent', async () => {
+      const fox = profile(2);
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted(),
+        childColour: 'white',
+        fen: MATE_IN_ONE,
+        rewards: fox.rewards,
+      });
+      await session.start();
+      const events = await session.move({ from: 'a1', to: 'a8' });
+      expect(events).toContainEqual({ type: 'points-awarded', amount: 75, total: 75 });
+      expect(events).toContainEqual({ type: 'star-earned', opponentId: 'scripted', first: true });
+      // The game-over event comes last, after what was earned, so the result card can show it all.
+      expect(events.at(-1)).toMatchObject({ type: 'game-over', result: 'won' });
+      expect(fox.store.load(fox.id)).toMatchObject({ points: 75, opponentsBeaten: ['scripted'] });
+    });
+
+    it('losing awards 10 good-try Points and no star', async () => {
+      const fox = profile(6);
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted('a7a1'),
+        childColour: 'white',
+        fen: LOSING,
+        rewards: fox.rewards,
+      });
+      await session.start();
+      const events = await session.move({ from: 'b2', to: 'b3' });
+      expect(events).toContainEqual({ type: 'points-awarded', amount: 10, total: 10 });
+      expect(events.some((e) => e.type === 'star-earned')).toBe(false);
+      expect(events.at(-1)).toMatchObject({ type: 'game-over', result: 'lost' });
+      expect(fox.store.load(fox.id)).toMatchObject({ points: 10, opponentsBeaten: [] });
+    });
+
+    it('a draw awards 10 Points and no star', async () => {
+      const fox = profile(1);
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted(),
+        childColour: 'white',
+        fen: STALEMATE_IN_ONE,
+        rewards: fox.rewards,
+      });
+      await session.start();
+      const events = await session.move({ from: 'c1', to: 'c7' });
+      expect(events).toContainEqual({ type: 'points-awarded', amount: 10, total: 10 });
+      expect(events.some((e) => e.type === 'star-earned')).toBe(false);
+      expect(fox.store.load(fox.id).opponentsBeaten).toEqual([]);
+    });
+
+    it('a finished game awards once only, whatever is tapped afterwards', async () => {
+      const fox = profile(1);
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted(),
+        childColour: 'white',
+        fen: MATE_IN_ONE,
+        rewards: fox.rewards,
+      });
+      await session.start();
+      await session.move({ from: 'a1', to: 'a8' });
+      const after = [
+        ...(await session.undo()),
+        ...(await session.redo()),
+        ...(await session.move({ from: 'g1', to: 'h1' })),
+        ...(await session.start()),
+      ];
+      expect(after.some((e) => e.type === 'points-awarded' || e.type === 'star-earned')).toBe(false);
+      expect(fox.store.load(fox.id).points).toBe(50);
+    });
+
+    it('a resumed game that had already ended earns nothing again', async () => {
+      const fox = profile(1);
+      // Rook to a8 is checkmate: the saved moves end the game.
+      const session = createSession({
+        kind: 'opponent-game',
+        opponent: scripted(),
+        childColour: 'white',
+        fen: MATE_IN_ONE,
+        moves: ['Ra8#'],
+        rewards: fox.rewards,
+      });
+      const events = await session.start();
+      expect(events.some((e) => e.type === 'points-awarded' || e.type === 'game-over')).toBe(false);
+      expect(fox.store.load(fox.id).points).toBe(0);
+    });
+
+    it('beating an Opponent again earns the Points again, but no second star', async () => {
+      const fox = profile(1);
+      const win = async () => {
+        const session = createSession({
+          kind: 'opponent-game',
+          opponent: scripted(),
+          childColour: 'white',
+          fen: MATE_IN_ONE,
+          rewards: fox.rewards,
+        });
+        await session.start();
+        return session.move({ from: 'a1', to: 'a8' });
+      };
+      await win();
+      const again = await win();
+      expect(again).toContainEqual({ type: 'points-awarded', amount: 50, total: 100 });
+      expect(again).toContainEqual({ type: 'star-earned', opponentId: 'scripted', first: false });
+      expect(fox.store.load(fox.id).opponentsBeaten).toEqual(['scripted']);
     });
   });
 });

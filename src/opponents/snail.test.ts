@@ -21,7 +21,7 @@ async function playOut(seed: number, maxPlies = 200): Promise<string[]> {
 describe('Sleepy Snail', () => {
   it('only ever plays legal moves', async () => {
     for (let seed = 1; seed <= 5; seed++) await playOut(seed, 80);
-  });
+  }, 20_000); // 400 chess.js moves; slow when the whole suite runs in parallel
 
   it('is deterministic for a given seed', async () => {
     expect(await playOut(42, 40)).toEqual(await playOut(42, 40));

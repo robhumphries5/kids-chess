@@ -5,11 +5,13 @@ import { createPointsLedger } from '../core/points';
 import type { ProfileStore } from '../core/profiles';
 import { createPuzzleSession, type PuzzleSessionEvent } from '../core/puzzle-session';
 import { generateFreePiecePuzzle } from '../core/puzzles/free-piece';
+import { createStickerBook } from '../core/stickers';
 import type { BoardChanged, Colour } from '../core/session';
 import type { MoveChoice } from '../opponents/opponent';
 import type { Game, GameAudio } from './game-screen';
 import { promotionChoices } from './promotion-picker';
 import { showStarJar } from './star-jar';
+import { celebrateStickers } from './sticker-book';
 import { spokenMessage } from './spoken';
 
 /** Pause after a solve, so the cheer is heard and the capture seen before the next puzzle. */
@@ -29,6 +31,7 @@ interface Elements {
 /** Thin UI: an endless stream of puzzles for one Profile. Renders Session events and forwards moves. */
 export function startPuzzles(el: Elements, audio: GameAudio, store: ProfileStore, profileId: string): Game {
   const points = createPointsLedger(store, profileId);
+  const stickers = createStickerBook(store, profileId);
   const session = createPuzzleSession({ nextPuzzle: () => generateFreePiecePuzzle(Math.random), points });
   let colour: Colour = 'white';
   let busy = false;
@@ -65,6 +68,10 @@ export function startPuzzles(el: Elements, audio: GameAudio, store: ProfileStore
       switch (event.type) {
         case 'puzzle-started':
           if (!firstPuzzle) await wait(NEXT_PUZZLE_DELAY_MS);
+          if (stopped) return;
+          // Once the cheer has been heard, any sticker the Points unlocked is celebrated, and the next
+          // puzzle waits until the child has seen it. (Left before now? Home celebrates it instead.)
+          await new Promise<void>((done) => celebrateStickers(el.overlay, stickers.takeNew(), audio, done));
           if (stopped) return;
           firstPuzzle = false;
           colour = event.childColour;

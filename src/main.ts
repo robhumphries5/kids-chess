@@ -55,6 +55,7 @@ startApp(
     profileBadge: byId('profile-badge'),
     starJar: byId('star-jar'),
     grownUpArea: byId('grown-up'),
+    stickerBook: byId('sticker-book'),
     grownUpButton: byId<HTMLButtonElement>('grown-up-button'),
   },
   createProfileStore(),

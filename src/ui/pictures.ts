@@ -104,12 +104,19 @@ export const PLAY_SVG = svg(
     `<circle cx="74" cy="25" r="4" fill="#2b2b2b"/><circle cx="92" cy="25" r="4" fill="#2b2b2b"/>`,
 );
 
-/** Mini-games: a shiny apple (Hungry Pieces eats apples). */
-export const MINI_GAMES_SVG = svg(
+/** An apple: our own art. The shapes only, so the board can draw it on a square too. */
+export const APPLE_SHAPES =
   `<path d="M50 30 Q40 6 26 14" stroke="#7a4a2a" stroke-width="5" fill="none" stroke-linecap="round"/>` +
-    `<path d="M52 26 Q66 10 80 20 Q66 32 52 26 Z" fill="#5fb34a"/>` +
-    `<path d="M50 32 Q30 20 18 36 Q6 56 22 78 Q34 94 50 86 Q66 94 78 78 Q94 56 82 36 Q70 20 50 32 Z" fill="#e3423b"/>` +
-    `<ellipse cx="32" cy="48" rx="6" ry="10" fill="#fff" opacity="0.45"/>`,
+  `<path d="M52 26 Q66 10 80 20 Q66 32 52 26 Z" fill="#5fb34a"/>` +
+  `<path d="M50 32 Q30 20 18 36 Q6 56 22 78 Q34 94 50 86 Q66 94 78 78 Q94 56 82 36 Q70 20 50 32 Z" fill="#e3423b"/>` +
+  `<ellipse cx="32" cy="48" rx="6" ry="10" fill="#fff" opacity="0.45"/>`;
+
+/** Mini-games: a shiny apple (Hungry Pieces eats apples). */
+export const MINI_GAMES_SVG = svg(APPLE_SHAPES);
+
+/** Hungry Pieces on the Mini-games menu: an apple with a bite out of it. */
+export const HUNGRY_PIECES_SVG = svg(
+  APPLE_SHAPES + `<circle cx="86" cy="60" r="13" style="fill: var(--card, #fff)"/><circle cx="80" cy="74" r="9" style="fill: var(--card, #fff)"/>`,
 );
 
 /** Greedy Pig: a round pink pig with a big snout and a happy grin. */
@@ -169,4 +176,21 @@ export const NEW_GAME_SVG = svg(
       .map(([row, col]) => `<rect x="${16 + col * 15}" y="${24 + row * 15}" width="15" height="15" fill="#b58863"/>`)
       .join('') +
     `<path d="M80 8 L84 18 L94 22 L84 26 L80 36 L76 26 L66 22 L76 18 Z" fill="#ffc83d" stroke="#e0a000" stroke-width="2" stroke-linejoin="round"/>`,
+);
+
+/** Pick someone else: two little faces with a swap arrow between them. */
+export const PICK_SOMEONE_ELSE_SVG = svg(
+  `<circle cx="26" cy="60" r="18" fill="#f7a8bc"/><circle cx="74" cy="60" r="18" fill="#56b870"/>` +
+    `<circle cx="20" cy="56" r="3" fill="#2b2b2b"/><circle cx="32" cy="56" r="3" fill="#2b2b2b"/>` +
+    `<circle cx="68" cy="56" r="3" fill="#2b2b2b"/><circle cx="80" cy="56" r="3" fill="#2b2b2b"/>` +
+    `<path d="M20 67 Q26 72 32 67 M68 67 Q74 72 80 67" stroke="#2b2b2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>` +
+    `<path d="M30 30 Q50 12 70 30" stroke="#f5a623" stroke-width="6" fill="none" stroke-linecap="round"/>` +
+    `<path d="M62 22 L72 32 L58 34" stroke="#f5a623" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+);
+
+/** A draw: two hands meeting in a friendly high five. */
+export const DRAW_SVG = svg(
+  `<circle cx="50" cy="50" r="40" fill="#fff4c2"/>` +
+    `<path d="M22 70 L40 40 Q44 34 50 40 L50 40 Q56 34 60 40 L78 70" stroke="#d98a4a" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M50 18 V28 M36 22 L40 30 M64 22 L60 30" stroke="#f5a623" stroke-width="4" stroke-linecap="round"/>`,
 );
