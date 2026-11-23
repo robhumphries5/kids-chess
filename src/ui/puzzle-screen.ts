@@ -4,7 +4,7 @@ import type { Key } from 'chessground/types';
 import { createPointsLedger } from '../core/points';
 import type { ProfileStore } from '../core/profiles';
 import { createPuzzleSession, type PuzzleSessionEvent } from '../core/puzzle-session';
-import { generateFreePiecePuzzle } from '../core/puzzles/free-piece';
+import { randomThemePuzzle } from '../core/puzzles/themes';
 import { createStickerBook } from '../core/stickers';
 import type { BoardChanged, Colour } from '../core/session';
 import type { MoveChoice } from '../opponents/opponent';
@@ -32,7 +32,7 @@ interface Elements {
 export function startPuzzles(el: Elements, audio: GameAudio, store: ProfileStore, profileId: string): Game {
   const points = createPointsLedger(store, profileId);
   const stickers = createStickerBook(store, profileId);
-  const session = createPuzzleSession({ nextPuzzle: () => generateFreePiecePuzzle(Math.random), points });
+  const session = createPuzzleSession({ nextPuzzle: () => randomThemePuzzle(Math.random), points });
   let colour: Colour = 'white';
   let busy = false;
   let stopped = false;
