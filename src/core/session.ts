@@ -1,7 +1,10 @@
 import { Chess } from 'chess.js';
+import type { Analyser } from '../engine/analyser';
 import type { MoveChoice, Opponent } from '../opponents/opponent';
+import { findBlunder, type Blunder } from './blunder-warnings';
 import { pointsForResult } from './game-rewards';
 import type { PointsAwarded, PointsLedger } from './points';
+import type { KindSwitches } from './profiles';
 import type { SavedGame, SavedGameStore } from './saved-game';
 import type { StarEarned, Stars } from './stars';
 
@@ -19,6 +22,19 @@ export interface OpponentGameOptions {
   saveTo?: { store: SavedGameStore; profileId: string };
   /** What the child earns when the game ends: Points (through the ledger) and a star for a win. */
   rewards?: GameRewards;
+  /** The Profile's help switches for this game. Absent: no help. */
+  help?: GameHelp;
+}
+
+/**
+ * The help an Opponent game gives, from the Profile's Settings. Later help (Missed-Chance Alerts,
+ * Move Colours) adds its switches here and shares the analyser.
+ */
+export interface GameHelp {
+  /** Scores positions for the help features. */
+  analyser: Analyser;
+  /** Which Blunder Warnings are on. Absent: none. */
+  blunderWarning?: KindSwitches;
 }
 
 /** Where a finished game's rewards go. */
@@ -93,6 +109,14 @@ export interface SoundCue {
   sound: 'move' | 'capture' | 'check' | 'win';
 }
 
+/**
+ * The child's move (already played) gives something away. The Opponent waits until the child
+ * chooses Keep it (`keep`) or Undo (`undo`); the move itself is never blocked. The reason is spoken too.
+ */
+export interface BlunderWarning extends Blunder {
+  type: 'blunder-warning';
+}
+
 export type SessionEvent =
   | BoardChanged
   | OpponentMoved
@@ -101,6 +125,7 @@ export type SessionEvent =
   | GameOver
   | Say
   | SoundCue
+  | BlunderWarning
   | PointsAwarded
   | StarEarned;
 
@@ -111,6 +136,8 @@ export interface Session {
   undo(): Promise<SessionEvent[]>;
   /** Step forward again over what Undo took back, one turn at a time. A new move by the child clears it. */
   redo(): Promise<SessionEvent[]>;
+  /** Keep it: after a Blunder Warning, carry on as if there had been none. Otherwise does nothing. */
+  keep(): Promise<SessionEvent[]>;
 }
 
 export function createSession(options: SessionOptions): Session {
@@ -120,6 +147,8 @@ export function createSession(options: SessionOptions): Session {
   const redoable: string[][] = [];
   /** True once this game's result has earned its rewards. */
   let rewarded = false;
+  /** True while a Blunder Warning waits for Keep it or Undo: the Opponent holds its reply. */
+  let warningWaits = false;
 
   for (const san of options.moves ?? []) {
     try {
@@ -193,16 +222,17 @@ export function createSession(options: SessionOptions): Session {
   }
 
   /** Everything that follows a move landing: the new board, what to say, and the end of the game if it has ended. */
-  function afterMove(captured: boolean): SessionEvent[] {
+  function afterMove(captured: boolean, warning?: BlunderWarning): SessionEvent[] {
     const ended = gameOver();
     const check = chess.inCheck();
     const sound: SoundCue = {
       type: 'sound',
       sound: ended[0]?.result === 'won' ? 'win' : check ? 'check' : captured ? 'capture' : 'move',
     };
-    const text = ended.length ? spokenResult(ended[0]) : check ? 'Check!' : undefined;
+    // One message: two would cut each other off when spoken.
+    const text = ended.length ? spokenResult(ended[0]) : [check && 'Check!', warning?.reason].filter(Boolean).join(' ');
     const say: Say[] = text ? [{ type: 'say', text }] : [];
-    return [boardChanged(), sound, ...say, ...reward(ended[0]), ...ended];
+    return [boardChanged(), sound, ...(warning ? [warning] : []), ...say, ...reward(ended[0]), ...ended];
   }
 
   /**
@@ -246,6 +276,14 @@ export function createSession(options: SessionOptions): Session {
     return [{ type: 'game-over', result: 'drawn', reason }];
   }
 
+  /** A Blunder Warning for the child's move just played from `before`, if one is switched on and due. */
+  async function blunderWarning(before: string, move: MoveChoice): Promise<BlunderWarning | undefined> {
+    const help = options.help;
+    if (!help?.blunderWarning || chess.isGameOver()) return undefined;
+    const blunder = await findBlunder(before, move, help.analyser, help.blunderWarning);
+    return blunder && { type: 'blunder-warning', ...blunder };
+  }
+
   async function opponentTurn(): Promise<SessionEvent[]> {
     const played = play(await options.opponent.pickMove(chess.fen()));
     return [{ type: 'opponent-moved', from: played.from, to: played.to, san: played.san }, ...afterMove(Boolean(played.captured))];
@@ -268,13 +306,26 @@ export function createSession(options: SessionOptions): Session {
       }
       // A different move: what was undone can no longer be replayed.
       redoable.length = 0;
+      const before = chess.fen();
       const played = play(move);
-      const afterChild = afterMove(Boolean(played.captured));
+      const warning = await blunderWarning(before, move);
+      const afterChild = afterMove(Boolean(played.captured), warning);
       if (chess.isGameOver()) return afterChild;
+      if (warning) {
+        warningWaits = true;
+        return afterChild;
+      }
       return [...afterChild, ...(await opponentTurn())];
     },
 
+    async keep() {
+      if (!warningWaits) return [];
+      warningWaits = false;
+      return opponentTurn();
+    },
+
     async undo() {
+      warningWaits = false;
       const from = undoFrom();
       if (from >= 0) {
         const turn = chess.history().slice(from);
@@ -290,6 +341,8 @@ export function createSession(options: SessionOptions): Session {
       if (turn) {
         for (const san of turn) chess.move(san);
         save();
+        // A move taken back from a Blunder Warning had no reply yet: replaying it means Keep it.
+        if (!childToMove() && !chess.isGameOver()) return [boardChanged(), ...(await opponentTurn())];
       }
       return [boardChanged()];
     },

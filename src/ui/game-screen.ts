@@ -5,7 +5,15 @@ import { resolveColour, type ColourChoice } from '../core/colour';
 import { createPointsLedger } from '../core/points';
 import type { ProfileStore } from '../core/profiles';
 import type { SavedGame, SavedGameStore } from '../core/saved-game';
-import { createSession, type BoardChanged, type Colour, type GameResult, type SessionEvent } from '../core/session';
+import {
+  createSession,
+  type BlunderWarning,
+  type BoardChanged,
+  type Colour,
+  type GameHelp,
+  type GameResult,
+  type SessionEvent,
+} from '../core/session';
 import { createStars } from '../core/stars';
 import type { MoveChoice } from '../opponents/opponent';
 import type { OpponentCharacter } from '../opponents/roster';
@@ -60,7 +68,7 @@ export interface Game {
  * Start a game against the chosen Opponent. The board faces the child's side. When it ends, Rematch
  * starts a fresh one in the same place, with the same Opponent and colour choice (🎲 picks again);
  * Pick someone else leaves for the Opponent picker. The game is saved after every move, so the child
- * can quit any time and carry on later.
+ * can quit any time and carry on later. `help` is the Profile's help (Blunder Warnings…), if any.
  */
 export function startGame(
   el: Elements,
@@ -69,10 +77,11 @@ export function startGame(
   colour: ColourChoice,
   saving: GameSaving,
   pickSomeoneElse: () => void,
+  help?: GameHelp,
 ): Game {
   const next = { playAgain, pickSomeoneElse };
   const fresh = (resume?: SavedGame) =>
-    playOne(el, audio, character, resume?.childColour ?? resolveColour(colour), next, saving, resume);
+    playOne(el, audio, character, resume?.childColour ?? resolveColour(colour), next, saving, resume, help);
   // Only called from a click, after `current` is set.
   let current = fresh(saving.resume);
   function playAgain(): void {
@@ -91,6 +100,7 @@ function playOne(
   next: { playAgain: () => void; pickSomeoneElse: () => void },
   saving: GameSaving,
   resume: SavedGame | undefined,
+  help: GameHelp | undefined,
 ): Game {
   const opponent = showThinking(character.create(), thinkingInMessage(el.message, character.name));
   const session = createSession({
@@ -105,6 +115,7 @@ function playOne(
       stars: createStars(saving.profiles, saving.profileId),
       strength: character.strength,
     },
+    help,
   });
   let busy = false;
   let lastBoardEvent: BoardChanged | undefined;
@@ -129,8 +140,12 @@ function playOne(
   // Undo and Redo work straight away, with no confirmation. Greyed out when there is nothing to do.
   const undoButton = controlButton('↶', 'Undo', () => void send(() => session.undo()));
   const redoButton = controlButton('↷', 'Redo', () => void send(() => session.redo()));
+  // Shown in Redo's place only while a Blunder Warning waits: carry on with the move as played.
+  const keepButton = controlButton('👍', 'Keep it', () => void send(() => session.keep()));
+  keepButton.classList.add('keep-button');
+  keepButton.hidden = true;
   undoButton.disabled = redoButton.disabled = true;
-  el.controls.replaceChildren(undoButton, redoButton);
+  el.controls.replaceChildren(undoButton, redoButton, keepButton);
   el.controls.hidden = false;
 
   const sendMove = (move: MoveChoice) => send(() => session.move(move));
@@ -144,6 +159,8 @@ function playOne(
     el.message.replaceChildren();
     // Undo or Redo while the Promotion Picker is up: the pawn's move is dropped.
     el.overlay.hidden = true;
+    // Keep it or Undo answers a Blunder Warning.
+    showWarning(undefined);
     try {
       await render(await command());
     } finally {
@@ -177,6 +194,9 @@ function playOne(
         case 'promotion-needed':
           showPromotionPicker(event.from, event.to);
           break;
+        case 'blunder-warning':
+          showWarning(event);
+          break;
         case 'sound':
           audio.sound.play(event.sound);
           break;
@@ -202,6 +222,16 @@ function playOne(
           break;
       }
     }
+  }
+
+  /**
+   * A Blunder Warning (its reason is spoken and shown by the `say` that follows): a red arrow shows
+   * the danger on the board, which stays in view, and Keep it stands beside Undo. Undefined clears it.
+   */
+  function showWarning(warning: BlunderWarning | undefined): void {
+    cg.setAutoShapes(warning ? [{ orig: warning.threat[0] as Key, dest: warning.threat[1] as Key, brush: 'red' }] : []);
+    keepButton.hidden = !warning;
+    redoButton.hidden = Boolean(warning);
   }
 
   /** Tapping a piece completes the move. Shown on every promotion; nothing is ever chosen for the child. */

@@ -3,6 +3,7 @@ import { createPointsLedger } from './points';
 import { createProfileStore, type KeyValueStorage } from './profiles';
 import { createPuzzleSession, type PuzzleSessionEvent } from './puzzle-session';
 import { generateFreePiecePuzzle, takesAFreePiece } from './puzzles/free-piece';
+import { deliversCheckmate, generateMateInOnePuzzle } from './puzzles/mate-in-one';
 import type { Puzzle } from './puzzles/puzzle';
 import { seededRandom } from './random';
 
@@ -206,5 +207,59 @@ describe('Puzzle Session', () => {
       expect(types(await session.move(current!.hint))).toContain('puzzle-solved');
     }
     expect(store.load(fox.id).points).toBe(600);
+  });
+});
+
+describe('Puzzle Session with "Checkmate in one!" puzzles', () => {
+  // White: Kg6, Qa7. Black: Kh8. Qa8, Qb8, Qg7 and Qh7 all mate.
+  const FOUR_MATES = '7k/Q7/6K1/8/8/8/8/8 w - - 0 1';
+  const mateInOne = (fen: string, hint: { from: string; to: string }): Puzzle => ({
+    theme: 'checkmate-in-one',
+    fen,
+    goal: 'Checkmate in one!',
+    hint,
+    meetsGoal: (m) => deliversCheckmate(fen, m),
+  });
+  const pointsAwarded = (events: PuzzleSessionEvent[]) => events.find((e) => e.type === 'puzzle-solved');
+
+  it('speaks the goal when a generated puzzle starts', async () => {
+    const { session } = setUp(generateMateInOnePuzzle(seededRandom(3)));
+    const events = await session.start();
+    expect(events).toContainEqual({ type: 'say', text: 'Checkmate in one!' });
+    expect(events[0]).toMatchObject({ theme: 'checkmate-in-one', childColour: 'white' });
+  });
+
+  it('a different mate from the stored hint is accepted, for full Points', async () => {
+    const { session } = setUp(mateInOne(FOUR_MATES, { from: 'a7', to: 'g7' }));
+    await session.start();
+    expect(pointsAwarded(await session.move({ from: 'a7', to: 'b8' }))).toEqual({ type: 'puzzle-solved', points: 30 });
+  });
+
+  it('a check that is not mate, then a quiet move, step through the Hint Steps; mating then gives 10 Points', async () => {
+    const { session } = setUp(mateInOne(FOUR_MATES, { from: 'a7', to: 'g7' }));
+    await session.start();
+    expect(await session.move({ from: 'a7', to: 'd4' })).toContainEqual({ type: 'hint-step', step: 1, piece: 'a7' });
+    expect(await session.move({ from: 'a7', to: 'a6' })).toContainEqual({
+      type: 'hint-step',
+      step: 2,
+      move: { from: 'a7', to: 'g7' },
+    });
+    expect(pointsAwarded(await session.move({ from: 'a7', to: 'h7' }))).toEqual({ type: 'puzzle-solved', points: 10 });
+  });
+
+  it('keeps coming: many generated puzzles in a row, each solved by its stored hint', async () => {
+    const random = seededRandom(9);
+    let current: Puzzle | undefined;
+    const store = createProfileStore(undefined);
+    const fox = store.add('fox');
+    const session = createPuzzleSession({
+      nextPuzzle: () => (current = generateMateInOnePuzzle(random)),
+      points: createPointsLedger(store, fox.id),
+    });
+    await session.start();
+    for (let i = 0; i < 10; i++) {
+      expect(types(await session.move(current!.hint))).toContain('puzzle-solved');
+    }
+    expect(store.load(fox.id).points).toBe(300);
   });
 });
