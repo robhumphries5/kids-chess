@@ -3,6 +3,7 @@ import { HUNGRY_PIECES, type HungryPiece } from '../core/hungry-pieces';
 import type { Profile, ProfileStore } from '../core/profiles';
 import { createStars } from '../core/stars';
 import { createSavedGameStore, type SavedGame, type SavedGameStore } from '../core/saved-game';
+import { sharedStockfish } from '../engine/stockfish-analyser';
 import { OPPONENTS, opponentById, type OpponentCharacter } from '../opponents/roster';
 import { startGame, type Game, type GameAudio } from './game-screen';
 import { showGrownUpArea } from './grown-up-area';
@@ -288,6 +289,8 @@ export function startApp(
         game = undefined;
         opponentPicker(profile);
       },
+      // Read when the game starts: the Grown-up Area can't be opened mid-game.
+      { analyser: sharedStockfish(), blunderWarning: store.load(profile.id).settings.blunderWarning },
     );
     const leave = () => {
       game?.stop();
