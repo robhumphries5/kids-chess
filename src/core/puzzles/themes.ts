@@ -3,6 +3,8 @@ import { pickOne, type Random } from '../random';
 import { FREE_PIECE_THEME, generateFreePiecePuzzle } from './free-piece';
 import { generateMateInOnePuzzle, MATE_IN_ONE_THEME } from './mate-in-one';
 import type { Puzzle } from './puzzle';
+import { generateReallyFreePuzzle, REALLY_FREE_THEME } from './really-free';
+import { FORK_THEME, generateForkPuzzle } from './fork';
 
 export interface PuzzleTheme {
   id: string;
@@ -12,6 +14,8 @@ export interface PuzzleTheme {
 export const PUZZLE_THEMES: readonly PuzzleTheme[] = [
   { id: FREE_PIECE_THEME, generate: generateFreePiecePuzzle },
   { id: MATE_IN_ONE_THEME, generate: generateMateInOnePuzzle },
+  { id: REALLY_FREE_THEME, generate: generateReallyFreePuzzle },
+  { id: FORK_THEME, generate: generateForkPuzzle },
 ];
 
 /** A puzzle from any theme, picked at random. Stands in until the Puzzle Ladder level picks the theme. */

@@ -4,7 +4,12 @@ import { PUZZLE_THEMES, randomThemePuzzle } from './themes';
 
 describe('Puzzle themes', () => {
   it('are listed in Puzzle Ladder order', () => {
-    expect(PUZZLE_THEMES.map((t) => t.id)).toEqual(['take-the-free-piece', 'checkmate-in-one']);
+    expect(PUZZLE_THEMES.map((t) => t.id)).toEqual([
+      'take-the-free-piece',
+      'checkmate-in-one',
+      'is-it-really-free',
+      'simple-fork',
+    ]);
   });
 
   it('each makes puzzles of its own theme', () => {
