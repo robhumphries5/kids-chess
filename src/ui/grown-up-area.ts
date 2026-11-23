@@ -19,18 +19,28 @@ interface SettingSwitch {
   set(settings: ProfileSettings, on: boolean): ProfileSettings;
 }
 
-/** What each of the four kinds is called on its switch. */
-const KIND_LABELS: Readonly<Record<keyof KindSwitches, string>> = {
+type KindLabels = Readonly<Record<keyof KindSwitches, string>>;
+
+/** What each of the four kinds is called on its Blunder Warning switch. */
+const BLUNDER_LABELS: KindLabels = {
   checkmate: 'checkmate',
   queen: 'losing the queen',
   rook: 'losing a rook',
   bishopKnight: 'losing a bishop or knight',
 };
 
+/** What each of the four kinds is called on its Missed-Chance Alert switch. */
+const MISSED_CHANCE_LABELS: KindLabels = {
+  checkmate: 'checkmate',
+  queen: 'a free queen',
+  rook: 'a free rook',
+  bishopKnight: 'a free bishop or knight',
+};
+
 /** One switch per kind for a four-kind help feature (Blunder Warnings, Missed-Chance Alerts). */
-function kindSwitches(group: 'blunderWarning' | 'missedChance', name: string): SettingSwitch[] {
-  return (Object.keys(KIND_LABELS) as (keyof KindSwitches)[]).map((kind) => ({
-    label: `${name}: ${KIND_LABELS[kind]}`,
+function kindSwitches(group: 'blunderWarning' | 'missedChance', name: string, labels: KindLabels): SettingSwitch[] {
+  return (Object.keys(labels) as (keyof KindSwitches)[]).map((kind) => ({
+    label: `${name}: ${labels[kind]}`,
     get: (s) => s[group][kind],
     set: (s, on) => ({ ...s, [group]: { ...s[group], [kind]: on } }),
   }));
@@ -42,7 +52,8 @@ const SETTING_SWITCHES: readonly SettingSwitch[] = [
     get: (s) => s.voice,
     set: (s, on) => ({ ...s, voice: on }),
   },
-  ...kindSwitches('blunderWarning', 'Blunder Warning'),
+  ...kindSwitches('blunderWarning', 'Blunder Warning', BLUNDER_LABELS),
+  ...kindSwitches('missedChance', 'Missed-Chance Alert', MISSED_CHANCE_LABELS),
 ];
 
 /** Long enough for any real name; keeps the layout sane. */
