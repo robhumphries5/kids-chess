@@ -68,7 +68,7 @@ export interface Game {
  * Start a game against the chosen Opponent. The board faces the child's side. When it ends, Rematch
  * starts a fresh one in the same place, with the same Opponent and colour choice (🎲 picks again);
  * Pick someone else leaves for the Opponent picker. The game is saved after every move, so the child
- * can quit any time and carry on later. `help` is the Profile's help (Blunder Warnings…), if any.
+ * can quit any time and carry on later. `help` is the Profile's help (Blunder Warnings, Missed-Chance Alerts…), if any.
  */
 export function startGame(
   el: Elements,
@@ -218,6 +218,8 @@ function playOne(
         case 'game-over':
           showResult(event.result);
           break;
+        // A Missed-Chance Alert is only spoken (by the `say` that follows): nothing on the board gives it away.
+        case 'missed-chance':
         case 'move-rejected':
           break;
       }

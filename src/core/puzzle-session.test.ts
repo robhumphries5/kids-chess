@@ -4,7 +4,9 @@ import { createProfileStore, type KeyValueStorage } from './profiles';
 import { createPuzzleSession, type PuzzleSessionEvent } from './puzzle-session';
 import { generateFreePiecePuzzle, takesAFreePiece } from './puzzles/free-piece';
 import { deliversCheckmate, generateMateInOnePuzzle } from './puzzles/mate-in-one';
+import { generateNewPiecePuzzle, makesANewPiece } from './puzzles/new-piece';
 import type { Puzzle } from './puzzles/puzzle';
+import { generateRunAwayPuzzle, leavesItSafe } from './puzzles/run-away';
 import { seededRandom } from './random';
 
 // White: Ke1, Ra4, Bf1. Black: Ke8, Nd4, Pa7. Both Rxd4 and Rxa7 take a free piece.
@@ -254,6 +256,116 @@ describe('Puzzle Session with "Checkmate in one!" puzzles', () => {
     const fox = store.add('fox');
     const session = createPuzzleSession({
       nextPuzzle: () => (current = generateMateInOnePuzzle(random)),
+      points: createPointsLedger(store, fox.id),
+    });
+    await session.start();
+    for (let i = 0; i < 10; i++) {
+      expect(types(await session.move(current!.hint))).toContain('puzzle-solved');
+    }
+    expect(store.load(fox.id).points).toBe(300);
+  });
+});
+
+describe('Puzzle Session with "Make a new piece!" puzzles', () => {
+  // White: Kg1, Pb7. Black: Ke8, Nc8. The pawn can go straight on to b8 or take on c8.
+  const TWO_WAYS = '2n1k3/1P6/8/8/8/8/8/6K1 w - - 0 1';
+  const newPiece = (): Puzzle => ({
+    theme: 'make-a-new-piece',
+    fen: TWO_WAYS,
+    goal: 'Make a new piece!',
+    hint: { from: 'b7', to: 'b8', promotion: 'q' },
+    meetsGoal: (m) => makesANewPiece(TWO_WAYS, m),
+  });
+  const solved = (events: PuzzleSessionEvent[]) => events.find((e) => e.type === 'puzzle-solved');
+
+  it('speaks the goal when a generated puzzle starts', async () => {
+    const { session } = setUp(generateNewPiecePuzzle(seededRandom(3)));
+    const events = await session.start();
+    expect(events).toContainEqual({ type: 'say', text: 'Make a new piece!' });
+    expect(events[0]).toMatchObject({ theme: 'make-a-new-piece', childColour: 'white' });
+  });
+
+  it('every promotion shows the Promotion Picker, and queen, rook, bishop or knight all count, for full Points', async () => {
+    for (const promotion of ['q', 'r', 'b', 'n'] as const) {
+      const { session } = setUp(newPiece());
+      await session.start();
+      expect(await session.move({ from: 'b7', to: 'c8' })).toEqual([{ type: 'promotion-needed', from: 'b7', to: 'c8' }]);
+      expect(solved(await session.move({ from: 'b7', to: 'c8', promotion })), promotion).toEqual({
+        type: 'puzzle-solved',
+        points: 30,
+      });
+    }
+  });
+
+  it('a move that does not promote steps through the Hint Steps, and the app makes a queen in the end', async () => {
+    const { session } = setUp(newPiece());
+    await session.start();
+    expect(await session.move({ from: 'g1', to: 'g2' })).toContainEqual({ type: 'hint-step', step: 1, piece: 'b7' });
+    expect(await session.move({ from: 'g1', to: 'h1' })).toContainEqual({ type: 'hint-step', step: 2, move: { from: 'b7', to: 'b8' } });
+    const events = await session.move({ from: 'g1', to: 'f1' });
+    expect(solved(events)).toEqual({ type: 'puzzle-solved', points: 0 });
+    const played = events.find((e) => e.type === 'board-changed' && e.lastMove);
+    expect(played).toMatchObject({ lastMove: ['b7', 'b8'] });
+    if (played?.type !== 'board-changed') throw new Error();
+    expect(played.fen.split(' ')[0]).toContain('Q');
+  });
+
+  it('keeps coming: many generated puzzles in a row, each solved by its stored hint', async () => {
+    const random = seededRandom(11);
+    let current: Puzzle | undefined;
+    const store = createProfileStore(undefined);
+    const fox = store.add('fox');
+    const session = createPuzzleSession({
+      nextPuzzle: () => (current = generateNewPiecePuzzle(random)),
+      points: createPointsLedger(store, fox.id),
+    });
+    await session.start();
+    for (let i = 0; i < 10; i++) {
+      expect(types(await session.move(current!.hint))).toContain('puzzle-solved');
+    }
+    expect(store.load(fox.id).points).toBe(300);
+  });
+});
+
+describe('Puzzle Session with "Run away!" puzzles', () => {
+  // White: Kg1, Nd4, Ra1. Black: Ke8, Rd8 attacks the knight, which nothing defends.
+  const HANGING_KNIGHT = '3rk3/8/8/8/3N4/8/8/R5K1 w - - 0 1';
+  const runAway = (): Puzzle => ({
+    theme: 'run-away',
+    fen: HANGING_KNIGHT,
+    goal: 'Run away!',
+    hint: { from: 'd4', to: 'b5' },
+    meetsGoal: (m) => leavesItSafe(HANGING_KNIGHT, 'd4', m),
+  });
+  const solved = (events: PuzzleSessionEvent[]) => events.find((e) => e.type === 'puzzle-solved');
+
+  it('speaks the goal when a generated puzzle starts', async () => {
+    const { session } = setUp(generateRunAwayPuzzle(seededRandom(3)));
+    const events = await session.start();
+    expect(events).toContainEqual({ type: 'say', text: 'Run away!' });
+    expect(events[0]).toMatchObject({ theme: 'run-away', childColour: 'white' });
+  });
+
+  it('defending the piece instead of moving it counts, for full Points', async () => {
+    const { session } = setUp(runAway());
+    await session.start();
+    expect(solved(await session.move({ from: 'a1', to: 'd1' }))).toEqual({ type: 'puzzle-solved', points: 30 });
+  });
+
+  it('a move that leaves it to be taken wobbles the piece in danger; solving after that gives 20', async () => {
+    const { session } = setUp(runAway());
+    await session.start();
+    expect(await session.move({ from: 'a1', to: 'a2' })).toContainEqual({ type: 'hint-step', step: 1, piece: 'd4' });
+    expect(solved(await session.move({ from: 'd4', to: 'f5' }))).toEqual({ type: 'puzzle-solved', points: 20 });
+  });
+
+  it('keeps coming: many generated puzzles in a row, each solved by its stored hint', async () => {
+    const random = seededRandom(13);
+    let current: Puzzle | undefined;
+    const store = createProfileStore(undefined);
+    const fox = store.add('fox');
+    const session = createPuzzleSession({
+      nextPuzzle: () => (current = generateRunAwayPuzzle(random)),
       points: createPointsLedger(store, fox.id),
     });
     await session.start();

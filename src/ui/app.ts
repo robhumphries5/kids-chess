@@ -278,6 +278,8 @@ export function startApp(
     el.go.hidden = true;
     el.grownUpButton.hidden = true;
     el.game.hidden = false;
+    // Read when the game starts: the Grown-up Area can't be opened mid-game.
+    const { blunderWarning, missedChance } = store.load(profile.id).settings;
     game = startGame(
       { board: el.board, message: el.message, overlay: el.overlay, controls: el.gameControls, go: el.go, starJar: el.starJar },
       audio,
@@ -289,8 +291,7 @@ export function startApp(
         game = undefined;
         opponentPicker(profile);
       },
-      // Read when the game starts: the Grown-up Area can't be opened mid-game.
-      { analyser: sharedStockfish(), blunderWarning: store.load(profile.id).settings.blunderWarning },
+      { analyser: sharedStockfish(), blunderWarning, missedChance },
     );
     const leave = () => {
       game?.stop();

@@ -3,6 +3,7 @@ import type { Analyser } from '../engine/analyser';
 import type { MoveChoice, Opponent } from '../opponents/opponent';
 import { findBlunder, type Blunder } from './blunder-warnings';
 import { pointsForResult } from './game-rewards';
+import { findMissedChance, type MissedChance } from './missed-chances';
 import type { PointsAwarded, PointsLedger } from './points';
 import type { KindSwitches } from './profiles';
 import type { SavedGame, SavedGameStore } from './saved-game';
@@ -27,14 +28,16 @@ export interface OpponentGameOptions {
 }
 
 /**
- * The help an Opponent game gives, from the Profile's Settings. Later help (Missed-Chance Alerts,
- * Move Colours) adds its switches here and shares the analyser.
+ * The help an Opponent game gives, from the Profile's Settings. Later help (Move Colours) adds its
+ * switches here and shares the analyser.
  */
 export interface GameHelp {
   /** Scores positions for the help features. */
   analyser: Analyser;
   /** Which Blunder Warnings are on. Absent: none. */
   blunderWarning?: KindSwitches;
+  /** Which Missed-Chance Alerts are on. Absent: none. */
+  missedChance?: KindSwitches;
 }
 
 /** Where a finished game's rewards go. */
@@ -117,6 +120,14 @@ export interface BlunderWarning extends Blunder {
   type: 'blunder-warning';
 }
 
+/**
+ * At the start of the child's turn, the Opponent has left a treat to find. The text (spoken too, by
+ * the `say` that follows) says what kind, never where or how. Any move may be played next.
+ */
+export interface MissedChanceAlert extends MissedChance {
+  type: 'missed-chance';
+}
+
 export type SessionEvent =
   | BoardChanged
   | OpponentMoved
@@ -126,6 +137,7 @@ export type SessionEvent =
   | Say
   | SoundCue
   | BlunderWarning
+  | MissedChanceAlert
   | PointsAwarded
   | StarEarned;
 
@@ -222,7 +234,7 @@ export function createSession(options: SessionOptions): Session {
   }
 
   /** Everything that follows a move landing: the new board, what to say, and the end of the game if it has ended. */
-  function afterMove(captured: boolean, warning?: BlunderWarning): SessionEvent[] {
+  function afterMove(captured: boolean, note?: { event: BlunderWarning | MissedChanceAlert; text: string }): SessionEvent[] {
     const ended = gameOver();
     const check = chess.inCheck();
     const sound: SoundCue = {
@@ -230,9 +242,9 @@ export function createSession(options: SessionOptions): Session {
       sound: ended[0]?.result === 'won' ? 'win' : check ? 'check' : captured ? 'capture' : 'move',
     };
     // One message: two would cut each other off when spoken.
-    const text = ended.length ? spokenResult(ended[0]) : [check && 'Check!', warning?.reason].filter(Boolean).join(' ');
+    const text = ended.length ? spokenResult(ended[0]) : [check && 'Check!', note?.text].filter(Boolean).join(' ');
     const say: Say[] = text ? [{ type: 'say', text }] : [];
-    return [boardChanged(), sound, ...(warning ? [warning] : []), ...say, ...reward(ended[0]), ...ended];
+    return [boardChanged(), sound, ...(note ? [note.event] : []), ...say, ...reward(ended[0]), ...ended];
   }
 
   /**
@@ -284,9 +296,21 @@ export function createSession(options: SessionOptions): Session {
     return blunder && { type: 'blunder-warning', ...blunder };
   }
 
+  /** A Missed-Chance Alert for the start of the child's turn, if one is switched on and due. */
+  async function missedChanceAlert(): Promise<MissedChanceAlert | undefined> {
+    const help = options.help;
+    if (!help?.missedChance || !childToMove()) return undefined;
+    const chance = await findMissedChance(chess.fen(), help.analyser, help.missedChance);
+    return chance && { type: 'missed-chance', ...chance };
+  }
+
   async function opponentTurn(): Promise<SessionEvent[]> {
     const played = play(await options.opponent.pickMove(chess.fen()));
-    return [{ type: 'opponent-moved', from: played.from, to: played.to, san: played.san }, ...afterMove(Boolean(played.captured))];
+    const alert = await missedChanceAlert();
+    return [
+      { type: 'opponent-moved', from: played.from, to: played.to, san: played.san },
+      ...afterMove(Boolean(played.captured), alert && { event: alert, text: alert.text }),
+    ];
   }
 
   return {
@@ -309,7 +333,7 @@ export function createSession(options: SessionOptions): Session {
       const before = chess.fen();
       const played = play(move);
       const warning = await blunderWarning(before, move);
-      const afterChild = afterMove(Boolean(played.captured), warning);
+      const afterChild = afterMove(Boolean(played.captured), warning && { event: warning, text: warning.reason });
       if (chess.isGameOver()) return afterChild;
       if (warning) {
         warningWaits = true;

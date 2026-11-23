@@ -112,13 +112,26 @@ function promotionBonus(move: Move): number {
   return move.promotion ? PIECE_VALUES[move.promotion] - PIECE_VALUES.p : 0;
 }
 
+/** Could the side to move in `fen` take the piece on `square` and win material doing it? */
+export function canBeTakenForFree(fen: string, square: Square): boolean {
+  const chess = new Chess(fen);
+  // A quick look first; only if something attacks the square, look at each capture there.
+  if (!chess.isAttacked(square, chess.turn())) return false;
+  return winningCapturesOn(chess, chess.moves({ verbose: true }).filter((m) => m.to === square)).length > 0;
+}
+
 /**
  * Captures the side to move in `fen` can make that win material: the target can't be taken back, or
  * the capturing piece is worth less than its target. Kings are never targets (that's check).
  */
 export function winningCaptures(fen: string): Move[] {
   const chess = new Chess(fen);
-  return chess.moves({ verbose: true }).filter((m) => {
+  return winningCapturesOn(chess, chess.moves({ verbose: true }));
+}
+
+/** Those of `moves` (legal in `chess`) that are winning captures. */
+function winningCapturesOn(chess: Chess, moves: Move[]): Move[] {
+  return moves.filter((m) => {
     if (!m.captured) return false;
     if (PIECE_VALUES[m.piece] < PIECE_VALUES[m.captured]) return true;
     chess.move(m);
