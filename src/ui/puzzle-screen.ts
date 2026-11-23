@@ -132,9 +132,20 @@ export function startPuzzles(el: Elements, audio: GameAudio, store: ProfileStore
     for (const piece of el.board.querySelectorAll<HTMLElement>('piece')) {
       if ((piece as HTMLElement & { cgKey?: string }).cgKey !== square || piece.classList.contains('ghost')) continue;
       piece.classList.remove('wobble');
+      // Chessground places pieces with `transform: translate(...)`, so `rotate` would swing the piece
+      // round the board's corner. Putting the origin at the piece's centre makes it shiver in place.
+      const at = new DOMMatrix(getComputedStyle(piece).transform);
+      piece.style.transformOrigin = `${at.m41 + piece.offsetWidth / 2}px ${at.m42 + piece.offsetHeight / 2}px`;
       void piece.offsetWidth; // Restarts the wobble.
       piece.classList.add('wobble');
-      piece.addEventListener('animationend', () => piece.classList.remove('wobble'), { once: true });
+      piece.addEventListener(
+        'animationend',
+        () => {
+          piece.classList.remove('wobble');
+          piece.style.transformOrigin = '';
+        },
+        { once: true },
+      );
     }
   }
 

@@ -90,14 +90,15 @@ cg-board square.check {
 
 /* Hint Step 1: the right piece wobbles. Uses `rotate`, which stacks with chessground's `transform`. */
 cg-board piece.wobble {
-  animation: piece-wobble 0.5s ease-in-out 3;
+  animation: piece-wobble 0.14s linear 6;
   z-index: 3;
 }
 
+/* A small shiver in place (the origin is set to the piece's centre in puzzle-screen.ts). */
 @keyframes piece-wobble {
   0%, 100% { rotate: 0deg; }
-  25% { rotate: -7deg; }
-  75% { rotate: 7deg; }
+  25% { rotate: -4deg; }
+  75% { rotate: 4deg; }
 }
 
 @media (prefers-reduced-motion: reduce) {
