@@ -4,7 +4,7 @@ import { PUZZLE_THEMES, randomThemePuzzle } from './themes';
 
 describe('Puzzle themes', () => {
   it('are listed in Puzzle Ladder order', () => {
-    expect(PUZZLE_THEMES.map((t) => t.id)).toEqual(['take-the-free-piece', 'checkmate-in-one']);
+    expect(PUZZLE_THEMES.map((t) => t.id)).toEqual(['take-the-free-piece', 'make-a-new-piece', 'run-away', 'checkmate-in-one']);
   });
 
   it('each makes puzzles of its own theme', () => {
