@@ -96,8 +96,8 @@ cg-board piece.wobble {
 
 @keyframes piece-wobble {
   0%, 100% { rotate: 0deg; }
-  25% { rotate: -14deg; }
-  75% { rotate: 14deg; }
+  25% { rotate: -7deg; }
+  75% { rotate: 7deg; }
 }
 
 @media (prefers-reduced-motion: reduce) {
