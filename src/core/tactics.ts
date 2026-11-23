@@ -1,6 +1,6 @@
 // Simple tactic checks on a position, by exact rules (no engine). Shared by the help features:
 // Blunder Warnings, and later Missed-Chance Alerts and Move Colours.
-import { Chess, type Move, type PieceSymbol } from 'chess.js';
+import { Chess, type Move, type PieceSymbol, type Square } from 'chess.js';
 
 /** Rough worth in centipawns, for deciding whether a capture wins material. */
 export const PIECE_VALUES: Readonly<Record<PieceSymbol, number>> = { p: 100, n: 300, b: 300, r: 500, q: 900, k: 0 };
@@ -20,13 +20,26 @@ export function matesInOne(fen: string): Move[] {
   return new Chess(fen).moves({ verbose: true }).filter((m) => m.san.endsWith('#'));
 }
 
+/** Could the side to move in `fen` take the piece on `square` and win material doing it? */
+export function canBeTakenForFree(fen: string, square: Square): boolean {
+  const chess = new Chess(fen);
+  // A quick look first; only if something attacks the square, look at each capture there.
+  if (!chess.isAttacked(square, chess.turn())) return false;
+  return winningCapturesOn(chess, chess.moves({ verbose: true }).filter((m) => m.to === square)).length > 0;
+}
+
 /**
  * Captures the side to move in `fen` can make that win material: the target can't be taken back, or
  * the capturing piece is worth less than its target. Kings are never targets (that's check).
  */
 export function winningCaptures(fen: string): Move[] {
   const chess = new Chess(fen);
-  return chess.moves({ verbose: true }).filter((m) => {
+  return winningCapturesOn(chess, chess.moves({ verbose: true }));
+}
+
+/** Those of `moves` (legal in `chess`) that are winning captures. */
+function winningCapturesOn(chess: Chess, moves: Move[]): Move[] {
+  return moves.filter((m) => {
     if (!m.captured) return false;
     if (PIECE_VALUES[m.piece] < PIECE_VALUES[m.captured]) return true;
     chess.move(m);
